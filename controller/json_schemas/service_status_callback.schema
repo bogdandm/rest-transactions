@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "service_name": {
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "READY",
+        "FAIL",
+        "TIMEOUT"
+      ]
+    }
+  },
+  "required": [
+    "service_name",
+    "key",
+    "status"
+  ]
+}

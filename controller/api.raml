@@ -56,49 +56,52 @@ traits:
                 schema: Error
 
 /transaction:
-  displayName: 
+  displayName:
   post:
     is: [validated]
     description: |
-      Открытие новой транзакции. В теле запроса передается массив запросов к сервисам, поддерживающим Transaction API. Все запросы выполняются паралельно (если это возможно). Для любой операции можно указать следующую операцию (then) и в ней использовать ответ из предыдущей операции. Например: получить данные от service2 и обновить данные в service1 (см. Example). Так же запросы к одному сервису имеет смысл связывать в цепочку, если этот сервис не поддерживает паралельное выполнение запросов.
+      Открытие новой транзакции. В теле запроса передается массив запросов к сервисам, поддерживающим Transaction API, и глобальный timeout для всех запросов в ms (максимум = 1 час). Все запросы выполняются паралельно (если это возможно). Для любой операции можно указать следующую операцию (then) и в ней использовать ответ из предыдущей операции. Например: получить данные от service2 и обновить данные в service1 (см. Example). Так же запросы к одному сервису имеет смысл связывать в цепочку, если этот сервис не поддерживает паралельное выполнение запросов.
     body:
       schema: !include json_schemas/transaction.schema
       example: |
-        [
-          {
-            "_id": "a",
-            "url": "/service1/item",
-            "method": "POST",
-            "data": {
-              "": "some data"
-            },
-            "headers": {},
-            "then": null
-          },
-          {
-            "_id": "b",
-            "url": "/service2/item/100500",
-            "method": "GET",
-            "data": {},
-            "headers": {},
-            "then": {
-              "_id": "c",
-              "url": "/service1/item/{id}",
-              "method": "PUT",
-              "data": "{body}",
-              "headers": {},
-              "$patterns": {
-                "url": {
-                  "$id": "$RESPONSE/key1._id"
-                },
-                "data": {
-                  "$body": "$RESPONSE/key1(name, value)"
-                }
+        {
+          "timeout": 1000,
+          "actions": [
+            {
+              "_id": "a",
+              "url": "/service1/item",
+              "method": "POST",
+              "data": {
+                "": "some data"
               },
+              "headers": {},
               "then": null
+            },
+            {
+              "_id": "b",
+              "url": "/service2/item/100500",
+              "method": "GET",
+              "data": {},
+              "headers": {},
+              "then": {
+                "_id": "c",
+                "url": "/service1/item/{id}",
+                "method": "PUT",
+                "data": "{body}",
+                "headers": {},
+                "$patterns": {
+                  "url": {
+                    "$id": "$RESPONSE/key1._id"
+                  },
+                  "data": {
+                    "$body": "$RESPONSE/key1(name, value)"
+                  }
+                },
+                "then": null
+              }
             }
-          }
-        ]
+          ]
+        }
 
     responses:
       200:
@@ -127,3 +130,14 @@ traits:
 
     delete:
       description: Выполняет принудительный rollback, если возможно
+
+    put:
+      description: Вызавается сервисом для передачи статуса. Проверяется пара service_name & key для защиты от ошибочных ответов
+      body:
+        schema: !include json_schemas/service_status_callback.schema
+        example: |
+          {
+            "service_name": "...",
+            "key": "sha256_str (Такой же ключ должен быть возвращен контроллеру при создании транзакции)",
+            "status": "READY"
+          }

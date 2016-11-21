@@ -1,9 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "array",
-  "items": {
-    "$ref": "#/definitions/request"
+  "type": "object",
+  "properties": {
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/request"
+      }
+    },
+    "timeout": {
+      "description" : "timeout in ms",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600000
+    }
   },
+  "required": [
+    "actions",
+    "timeout"
+  ],
   "definitions": {
     "request": {
       "type": "object",
