@@ -1,0 +1,129 @@
+#%RAML 0.8
+title: Transaction controller
+version: v1
+baseUri: http://bogdandm.ddns.net/controller/api/{version}/
+mediaType: application/json
+
+documentation:
+  - title: ""
+    content: |
+      Данный сервис предоставляет интерфейс для выполнения транзакций и выполняет их централизированное управление.
+
+schemas:
+  - Error: |
+      {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "description",
+          "data"
+        ]
+      }
+
+traits:
+  - validated:
+      description: Запрос проверятся при помощи JSON-schema
+      responses:
+        400:
+            body:
+              application/json:
+                description: Параметры запроса не валидны
+                example: |
+                  {
+                    "code": 11,
+                    "data": null,
+                    "description": "request params is invalid"
+                  }
+                schema: Error
+
+/transaction:
+  displayName: 
+  post:
+    is: [validated]
+    description: |
+      Открытие новой транзакции. В теле запроса передается массив запросов к сервисам, поддерживающим Transaction API. Все запросы выполняются паралельно (если это возможно). Для любой операции можно указать следующую операцию (then) и в ней использовать ответ из предыдущей операции. Например: получить данные от service2 и обновить данные в service1 (см. Example). Так же запросы к одному сервису имеет смысл связывать в цепочку, если этот сервис не поддерживает паралельное выполнение запросов.
+    body:
+      schema: !include json_schemas/transaction.schema
+      example: |
+        [
+          {
+            "_id": "a",
+            "url": "/service1/item",
+            "method": "POST",
+            "data": {
+              "": "some data"
+            },
+            "headers": {},
+            "then": null
+          },
+          {
+            "_id": "b",
+            "url": "/service2/item/100500",
+            "method": "GET",
+            "data": {},
+            "headers": {},
+            "then": {
+              "_id": "c",
+              "url": "/service1/item/{id}",
+              "method": "PUT",
+              "data": "{body}",
+              "headers": {},
+              "$patterns": {
+                "url": {
+                  "$id": "$RESPONSE/key1._id"
+                },
+                "data": {
+                  "$body": "$RESPONSE/key1(name, value)"
+                }
+              },
+              "then": null
+            }
+          }
+        ]
+
+    responses:
+      200:
+        description: Возвращает id транзакции.
+        body:
+          example: |
+            {
+              "OK": "ghjrtrytcb3453hfge56etaeg3wwb"
+            }
+
+  /{id}:
+    displayName: Транзакция {id}
+    get:
+      description: Возвращает статус транзакции и статус её операций
+      responses:
+        200:
+          body:
+            example: |
+              {
+                "status": "in_process",
+                "id1": "finish",
+                "id2": "in_process",
+                "id3": "in_process",
+                "id4": "wait(id3)"
+              }
+
+    delete:
+      description: Выполняет принудительный rollback, если возможно

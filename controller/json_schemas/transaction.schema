@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/request"
+  },
+  "definitions": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "_id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE"
+          ]
+        },
+        "data": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "headers": {
+          "type": "object"
+        },
+        "then": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/request"
+            }
+          ]
+        },
+        "$patterns": {
+          "type": "object",
+          "patternProperties": {
+            "": {
+              "$ref": "#/definitions/pattern"
+            }
+          }
+        }
+      },
+      "required": [
+        "_id",
+        "url",
+        "method",
+        "data",
+        "headers",
+        "then"
+      ]
+    },
+    "pattern": {
+      "type": "object",
+      "patternProperties": {
+        "^\\$[a-zA-Z_]+$": {
+          "type": "string",
+          "pattern": "^\\$RESPONSE"
+        }
+      }
+    }
+  }
+}
