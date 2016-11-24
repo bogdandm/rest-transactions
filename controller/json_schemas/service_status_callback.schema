@@ -13,8 +13,12 @@
       "enum": [
         "READY",
         "FAIL",
-        "TIMEOUT"
+        "TIMEOUT",
+        "IN_PROCESS"
       ]
+    },
+    "response": {
+      "type": "object"
     }
   },
   "required": [
