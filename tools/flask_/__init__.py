@@ -5,6 +5,7 @@ from typing import Union
 from flask import Flask
 from flask import Response
 from flask import make_response
+from werkzeug.wsgi import DispatcherMiddleware
 
 from tools import transform_json_types
 from tools.exceptions import catalog
@@ -62,6 +63,12 @@ class EmptyApp(Flask):
 		super().__init__(__name__)
 		self.root_path = root_path
 		self.config["APPLICATION_ROOT"] = app_root
+
+		def simple(env, resp):
+			resp(b'404 Page not found', [(b'Content-Type', b'text/plain')])
+			return [b'No server for this url']
+
+		self.wsgi_app = DispatcherMiddleware(simple, {app_root: self.wsgi_app})
 
 		self.schemas = {}
 		for p in Path('json_schemas').iterdir():
