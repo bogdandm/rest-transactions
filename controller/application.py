@@ -4,7 +4,7 @@ from tools.flask_.decorators import validate, json
 
 
 class ControllerRestService(EmptyApp):
-	VERSION = "v1"
+	VERSION = "v.alpha"
 
 	def __init__(self, root_path, app_root="/controller/api/%s" % VERSION):
 		super().__init__(root_path, app_root)
