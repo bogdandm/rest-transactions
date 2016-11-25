@@ -5,7 +5,8 @@ from jsonschema import validate as validjson
 import tools.exceptions
 from tools.flask_ import request_data, jsonify
 
-def validate_GET(schema: dict):
+
+def validate_get(schema: dict):
 	def decorator(f):
 		def wrapper(*args, **kwargs):
 			data = request.args
@@ -20,6 +21,7 @@ def validate_GET(schema: dict):
 		return wrapper
 
 	return decorator
+
 
 def validate(schema: dict):
 	def decorator(f):

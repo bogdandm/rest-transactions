@@ -68,7 +68,10 @@ class Transaction:
 			(True, False): EStatus.FINISH,
 			(True, True): EStatus.FAIL
 		}
-		f = lambda tr: (tr.finish.ready(), tr.fail.ready())
+
+		def f(tr):
+			return (tr.finish.ready(), tr.fail.ready())
+
 		return {
 			**{ch.service.name: m[f(ch)] for ch in self.childes},
 			"global": m[f(self)]
@@ -83,20 +86,20 @@ class Transaction:
 		killall(self.threads)  # THREAD:?, kill
 
 	@g_async
-	def wait_finish(self): # LISTENER
+	def wait_finish(self):  # LISTENER
 		wait(map(
 			lambda ch: ch.finish,
 			self.childes
 		))  # BLOCK
-		self.finish.set() # EMIT(finish)
+		self.finish.set()  # EMIT(finish)
 
 	@g_async
-	def wait_fail(self): # LISTENER
+	def wait_fail(self):  # LISTENER
 		wait(map(
 			lambda ch: ch.fail,
 			self.childes
 		), count=1, timeout=self.timeout)  # BLOCK, timeout
-		self.fail.set() # EMIT(fail)
+		self.fail.set()  # EMIT(fail)
 
 
 class ChildTransaction:
@@ -127,9 +130,9 @@ class ChildTransaction:
 
 	def set_resp(self, resp: request_lib.Response):
 		if resp.status_code != 200:
-			self.fail.set() # EMIT(fail)
+			self.fail.set()  # EMIT(fail)
 		else:
-			self.response.set(resp) # EMIT(response)
+			self.response.set(resp)  # EMIT(response)
 
 	@g_async
 	def spawn(self):
@@ -138,12 +141,12 @@ class ChildTransaction:
 				"timeout": self.parent.timeout * 3 / 4,
 				"callback-url": "{}/{}".format(self.parent.self_url, self.parent.id)
 			}, timeout=self.parent.timeout / 4)  # BLOCK, timeout
-		except:
-			self.fail.set() # EMIT(fail)
+		except (request_lib.RequestException, request_lib.Timeout):
+			self.fail.set()  # EMIT(fail)
 			return
 
 		if resp.status_code != 200:
-			self.fail.set() # EMIT(fail)
+			self.fail.set()  # EMIT(fail)
 		else:
 			js = resp.json()
 			# TODO: validate
@@ -162,19 +165,19 @@ class ChildTransaction:
 					"X-Transaction": self.key
 				}, timeout=self.ping_timeout)  # BLOCK, timeout
 				if resp.status_code != 200:
-					self.fail.set() # EMIT(fail)
+					self.fail.set()  # EMIT(fail)
 					return
-			except:
-				self.fail.set() # EMIT(fail)
+			except (request_lib.RequestException, request_lib.Timeout):
+				self.fail.set()  # EMIT(fail)
 				return
 			sleep(self.ping_timeout)
 		# Max timeout sum is 2*ping_timeout
 
 	@g_async
-	def wait_response(self): # LISTENER
+	def wait_response(self):  # LISTENER
 		wait(self.response, timeout=self.service.timeout)  # BLOCK, timeout
 		if self.response.successful():
 			if self.response.get().status_code == 200:
-				self.finish.set() # EMIT(finish)
+				self.finish.set()  # EMIT(finish)
 				return
-		self.fail.set() # EMIT(fail)
+		self.fail.set()  # EMIT(fail)

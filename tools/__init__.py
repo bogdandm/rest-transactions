@@ -15,6 +15,7 @@ def timeit(f):
 	:param f:
 	:return:
 	"""
+
 	def wrapper(*args, **kwargs):
 		start = time.time()
 		res = f(*args, **kwargs)

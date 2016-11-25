@@ -3,6 +3,7 @@ import gevent.monkey
 
 gevent.monkey.patch_all()
 
+
 def g_async(f):
 	"""
 	Wrap function/method to gevent.spawn and return Greenlet object
@@ -10,7 +11,7 @@ def g_async(f):
 	:return:
 	"""
 
-	def wrapper(*args):
+	def wrapper(*args) -> gevent.Greenlet:
 		return gevent.spawn(f, *args)
 
 	return wrapper
