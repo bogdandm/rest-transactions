@@ -1,17 +1,7 @@
-import json as json_lib
+from tools.flask_ import EmptyApp
+from tools.flask_.decorators import json, validate
 
-from flask import Flask
-
-from tools.exceptions import catalog
-from tools.flask_ import register_errors
-from tools.flask_.decorators import validate_get, json, validate
-
-app = Flask(__name__)
-
-with open("static/default_errors.json") as f:
-	http_errors = json_lib.loads(f.read())
-
-register_errors(app, http_errors, catalog)
+app = EmptyApp("./", "/api")
 
 schema1 = {
 	"$schema": "http://json-schema.org/draft-04/schema#",
@@ -40,7 +30,7 @@ schema2 = {
 
 
 @app.route("/sum", methods=["GET"])
-@validate_get(schema1)
+@validate(schema1)
 @json
 def index_get(data):
 	return {"result": int(data['x']) + int(data['y'])}
