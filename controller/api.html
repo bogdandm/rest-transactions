@@ -179,6 +179,25 @@
         "_id": {
           "type": "string"
         },
+        "service": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "timeout": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "url",
+            "timeout"
+          ]
+        },
         "url": {
           "type": "string"
         },
@@ -228,6 +247,7 @@
       },
       "required": [
         "_id",
+        "service",
         "url",
         "method",
         "data",
@@ -251,7 +271,12 @@
   "actions": [
     {
       "_id": "a",
-      "url": "/service1/item",
+      "service": {
+        "name": "Service 1",
+        "url": "http://service1.com/api",
+        "timeout": "10000"
+      },
+      "url": "/item",
       "method": "POST",
       "data": {
         "": "some data"
@@ -261,13 +286,23 @@
     },
     {
       "_id": "b",
-      "url": "/service2/item/100500",
+      "service": {
+        "name": "Service 2",
+        "url": "http://service2.com/api",
+        "timeout": "10000"
+      },
+      "url": "/item/100500",
       "method": "GET",
       "data": {},
       "headers": {},
       "then": {
         "_id": "c",
-        "url": "/service1/item/{id}",
+        "service": {
+          "name": "Service 1",
+          "url": "http://service1.com/api",
+          "timeout": "10000"
+        },
+        "url": "/item/{id}",
         "method": "PUT",
         "data": "{body}",
         "headers": {},
@@ -319,14 +354,17 @@
   "data": null,
   "description": "request params is invalid"
 }
-</code></pre></div></div></div></div></div></div></div><div class="panel panel-white"><div class="panel-heading"><h4 class="panel-title"><a class="collapsed" data-toggle="collapse" href="#panel_transaction__id_"><span class="parent">/transaction</span>/{id}</a> <span class="methods"><a href="#transaction__id__get"><span class="badge badge_get">get</span></a> <a href="#transaction__id__delete"><span class="badge badge_delete">delete</span></a> <a href="#transaction__id__put"><span class="badge badge_put">put</span></a></span></h4></div><div id="panel_transaction__id_" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#transaction__id__get'" class="list-group-item"><span class="badge badge_get">get</span><div class="method_description"><p>Возвращает статус транзакции и статус её операций</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#transaction__id__delete'" class="list-group-item"><span class="badge badge_delete">delete</span><div class="method_description"><p>Выполняет принудительный rollback, если возможно</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#transaction__id__put'" class="list-group-item"><span class="badge badge_put">put</span><div class="method_description"><p>Вызавается сервисом для передачи статуса. Проверяется пара service_name &amp; key для защиты от ошибочных ответов</p></div><div class="clearfix"></div></div></div></div></div><div class="modal fade" tabindex="0" id="transaction__id__get"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_get">get</span> <span class="parent">/transaction</span>/{id}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Возвращает статус транзакции и статус её операций</p></div><ul class="nav nav-tabs"><li class="active"><a href="#transaction__id__get_request" data-toggle="tab">Request</a></li><li><a href="#transaction__id__get_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="transaction__id__get_request"><h3>URI Parameters</h3><ul><li><strong>id</strong>: <em>required (string)</em></li></ul></div><div class="tab-pane" id="transaction__id__get_response"><h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{
+</code></pre></div></div></div></div></div></div></div><div class="panel panel-white"><div class="panel-heading"><h4 class="panel-title"><a class="collapsed" data-toggle="collapse" href="#panel_transaction__id_"><span class="parent">/transaction</span>/{id}</a> <span class="methods"><a href="#transaction__id__get"><span class="badge badge_get">get</span></a> <a href="#transaction__id__delete"><span class="badge badge_delete">delete</span></a> <a href="#transaction__id__put"><span class="badge badge_put">put</span></a></span></h4></div><div id="panel_transaction__id_" class="panel-collapse collapse"><div class="panel-body"><div class="list-group"><div onclick="window.location.href = '#transaction__id__get'" class="list-group-item"><span class="badge badge_get">get</span><div class="method_description"><p>Возвращает статус транзакции и статус её операций</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#transaction__id__delete'" class="list-group-item"><span class="badge badge_delete">delete</span><div class="method_description"><p>Выполняет принудительный rollback, если возможно</p></div><div class="clearfix"></div></div><div onclick="window.location.href = '#transaction__id__put'" class="list-group-item"><span class="badge badge_put">put</span><div class="method_description"><p>Вызывается сервисом для передачи статуса. Проверяется пара service_name &amp; key для защиты от ошибочных ответов</p></div><div class="clearfix"></div></div></div></div></div><div class="modal fade" tabindex="0" id="transaction__id__get"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_get">get</span> <span class="parent">/transaction</span>/{id}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Возвращает статус транзакции и статус её операций</p></div><ul class="nav nav-tabs"><li class="active"><a href="#transaction__id__get_request" data-toggle="tab">Request</a></li><li><a href="#transaction__id__get_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="transaction__id__get_request"><h3>URI Parameters</h3><ul><li><strong>id</strong>: <em>required (string)</em></li></ul></div><div class="tab-pane" id="transaction__id__get_response"><h2>HTTP status code <a href="http://httpstatus.es/200" target="_blank">200</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Example</strong>:</p><pre><code>{
   "status": "in_process",
-  "id1": "finish",
+  "id1": {
+    "status": "finish",
+    "response": {}
+  },
   "id2": "in_process",
   "id3": "in_process",
   "id4": "wait(id3)"
 }
-</code></pre></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="transaction__id__delete"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_delete">delete</span> <span class="parent">/transaction</span>/{id}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Выполняет принудительный rollback, если возможно</p></div><ul class="nav nav-tabs"><li class="active"><a href="#transaction__id__delete_request" data-toggle="tab">Request</a></li></ul><div class="tab-content"><div class="tab-pane active" id="transaction__id__delete_request"><h3>URI Parameters</h3><ul><li><strong>id</strong>: <em>required (string)</em></li></ul></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="transaction__id__put"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_put">put</span> <span class="parent">/transaction</span>/{id}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Вызавается сервисом для передачи статуса. Проверяется пара service_name &amp; key для защиты от ошибочных ответов</p></div><ul class="nav nav-tabs"><li class="active"><a href="#transaction__id__put_request" data-toggle="tab">Request</a></li><li><a href="#transaction__id__put_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="transaction__id__put_request"><h3>URI Parameters</h3><ul><li><strong>id</strong>: <em>required (string)</em></li></ul><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Schema</strong>:</p><pre><code>{
+</code></pre></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="transaction__id__delete"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_delete">delete</span> <span class="parent">/transaction</span>/{id}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Выполняет принудительный rollback, если возможно</p></div><ul class="nav nav-tabs"><li class="active"><a href="#transaction__id__delete_request" data-toggle="tab">Request</a></li></ul><div class="tab-content"><div class="tab-pane active" id="transaction__id__delete_request"><h3>URI Parameters</h3><ul><li><strong>id</strong>: <em>required (string)</em></li></ul></div></div></div></div></div></div><div class="modal fade" tabindex="0" id="transaction__id__put"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button><h4 class="modal-title" id="myModalLabel"><span class="badge badge_put">put</span> <span class="parent">/transaction</span>/{id}</h4></div><div class="modal-body"><div class="alert alert-info"><p>Вызывается сервисом для передачи статуса. Проверяется пара service_name &amp; key для защиты от ошибочных ответов</p></div><ul class="nav nav-tabs"><li class="active"><a href="#transaction__id__put_request" data-toggle="tab">Request</a></li><li><a href="#transaction__id__put_response" data-toggle="tab">Response</a></li></ul><div class="tab-content"><div class="tab-pane active" id="transaction__id__put_request"><h3>URI Parameters</h3><ul><li><strong>id</strong>: <em>required (string)</em></li></ul><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Schema</strong>:</p><pre><code>{
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
@@ -358,7 +396,7 @@
 </code></pre><p><strong>Example</strong>:</p><pre><code>{
   "service_name": "Service 1",
   "key": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-  "response": {"_": "Service pesponse"},
+  "response": {"_": "Service response"},
   "status": "READY"
 }
 </code></pre></div><div class="tab-pane" id="transaction__id__put_response"><h2>HTTP status code <a href="http://httpstatus.es/400" target="_blank">400</a></h2><h3>Body</h3><p><strong>Type: application/json</strong></p><p><strong>Schema</strong>:</p><pre><code>{

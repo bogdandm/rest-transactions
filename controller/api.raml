@@ -69,7 +69,12 @@ traits:
           "actions": [
             {
               "_id": "a",
-              "url": "/service1/item",
+              "service": {
+                "name": "Service 1",
+                "url": "http://service1.com/api",
+                "timeout": "10000"
+              },
+              "url": "/item",
               "method": "POST",
               "data": {
                 "": "some data"
@@ -79,13 +84,23 @@ traits:
             },
             {
               "_id": "b",
-              "url": "/service2/item/100500",
+              "service": {
+                "name": "Service 2",
+                "url": "http://service2.com/api",
+                "timeout": "10000"
+              },
+              "url": "/item/100500",
               "method": "GET",
               "data": {},
               "headers": {},
               "then": {
                 "_id": "c",
-                "url": "/service1/item/{id}",
+                "service": {
+                  "name": "Service 1",
+                  "url": "http://service1.com/api",
+                  "timeout": "10000"
+                },
+                "url": "/item/{id}",
                 "method": "PUT",
                 "data": "{body}",
                 "headers": {},
@@ -122,7 +137,10 @@ traits:
             example: |
               {
                 "status": "in_process",
-                "id1": "finish",
+                "id1": {
+                  "status": "finish",
+                  "response": {}
+                },
                 "id2": "in_process",
                 "id3": "in_process",
                 "id4": "wait(id3)"
@@ -133,13 +151,13 @@ traits:
 
     put:
       is:  [validated]
-      description: Вызавается сервисом для передачи статуса. Проверяется пара service_name & key для защиты от ошибочных ответов
+      description: Вызывается сервисом для передачи статуса. Проверяется пара service_name & key для защиты от ошибочных ответов
       body:
         schema: !include json_schemas/service_status_callback.schema
         example: |
           {
             "service_name": "Service 1",
             "key": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-            "response": {"_": "Service pesponse"},
+            "response": {"_": "Service response"},
             "status": "READY"
           }
