@@ -26,6 +26,25 @@
         "_id": {
           "type": "string"
         },
+        "service": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "timeout": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "url",
+            "timeout"
+          ]
+        },
         "url": {
           "type": "string"
         },
@@ -75,6 +94,7 @@
       },
       "required": [
         "_id",
+        "service",
         "url",
         "method",
         "data",
