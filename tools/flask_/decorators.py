@@ -5,25 +5,7 @@ from jsonschema import validate as validjson
 import tools.exceptions
 from tools.flask_ import request_data, jsonify
 
-
-def validate_get(schema: dict):
-	def decorator(f):
-		def wrapper(*args, **kwargs):
-			data = request.args
-			if schema:
-				try:
-					validjson(data, schema)
-				except ValidationError as e:
-					raise tools.exceptions.ParamsException(e.message)
-			return f(*args, **kwargs, data=data)
-
-		wrapper.__name__ = f.__name__
-		return wrapper
-
-	return decorator
-
-
-def validate(schema: dict):
+def validate(schema: dict=None):
 	def decorator(f):
 		def wrapper(*args, **kwargs):
 			data = request_data(request)

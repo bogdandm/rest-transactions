@@ -1,4 +1,5 @@
 import json
+import socket
 from abc import ABCMeta
 from re import match
 from typing import Tuple
@@ -6,7 +7,7 @@ from typing import Tuple
 from tools import transform_json_types
 
 
-def receive(socket_obj: socket_obj.SocketType, block=1024) -> bytes:
+def receive(socket_obj: socket.SocketType, block=1024) -> bytes:
 	"""
 	Read bytes from socket until find "\0"
 

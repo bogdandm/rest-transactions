@@ -1,5 +1,3 @@
-from enum import Enum
-
 import requests as request_lib
 from bson import ObjectId
 from gevent import killall
@@ -8,16 +6,7 @@ from gevent import wait
 from gevent.event import AsyncResult, Event
 
 from tools.gevent_ import g_async
-
-
-# TODO: then statement
-
-class EStatus(Enum):
-	IN_PROGRESS = 1
-	WAIT = 2
-	FAIL = 3
-	TIMEOUT = 4
-	FINISH = 5
+from tools.transactions import EStatus
 
 
 class Transaction:
@@ -29,7 +18,7 @@ class Transaction:
 
 	def __init__(self, data: dict):
 		"""
-		>>> data_template = {
+		>>> data = {
 		... 	"timeout": "ms",  # Global timeout of whole transaction
 		... 	"actions": [
 		... 		{
@@ -152,7 +141,7 @@ class ChildTransaction:
 			# TODO: validate
 			self.remote_id = js["_id"]
 			self.key = js["transaction-key"]
-			self.ping_timeout = js["ping_timeout"] * 1000
+			self.ping_timeout = js["ping-timeout"] * 1000
 
 			self.parent.threads.append(self.ping())  # THREAD:1, loop
 			self.parent.threads.append(self.wait_response())  # THREAD:1
@@ -175,7 +164,7 @@ class ChildTransaction:
 
 	@g_async
 	def wait_response(self):  # LISTENER
-		wait(self.response, timeout=self.service.timeout)  # BLOCK, timeout
+		wait((self.response,), timeout=self.service.timeout)  # BLOCK, timeout
 		if self.response.successful():
 			if self.response.get().status_code == 200:
 				self.finish.set()  # EMIT(finish)

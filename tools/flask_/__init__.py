@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Union
 
 from flask import Flask
-from flask import Response
+from flask import Response, Request
 from flask import make_response
 from werkzeug.wsgi import DispatcherMiddleware
 
@@ -35,11 +35,13 @@ def register_errors(app, http_errors: dict, custom_errors: dict):
 		app.register_error_handler(error, func)
 
 
-def request_data(request_):
-	data = request_.get_json()
-	if data is None:
-		return request_.form
-	return data
+def request_data(request_: Request):
+	if request_.method in ("GET", "DELETE"):
+		return request_.args
+
+	if request_.is_json:
+		return request_.get_json()
+	return request_.form
 
 
 def dejsonify(data: str, need_transform=False) -> Union[dict, list]:
@@ -71,10 +73,12 @@ class EmptyApp(Flask):
 		self.wsgi_app = DispatcherMiddleware(simple, {app_root: self.wsgi_app})
 
 		self.schemas = {}
-		for p in Path('json_schemas').iterdir():
-			if p.is_file():
-				with open(str(p)) as f:
-					self.schemas[p.stem] = json_lib.loads(f.read())
+		path = Path('json_schemas')
+		if path.exists():
+			for p in path.iterdir():
+				if p.is_file():
+					with open(str(p)) as f:
+						self.schemas[p.stem] = json_lib.loads(f.read())
 
 		with open("static/default_errors.json") as f:
 			http_errors = json_lib.loads(f.read())
