@@ -21,6 +21,15 @@
             margin-top: 0;
         }
 
+        .group {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
         .panel-group:last-child, :not(.flex-h) > .panel:last-child,
         .progress:last-child, .controller-service:last-child {
             margin-bottom: 0;
@@ -62,6 +71,7 @@
         .bulb {
             --size: 6px;
             --flash-size: 800%;
+            display: inline-block;
             margin: 0 calc(var(--size));
             width: var(--size);
             height: var(--size);
@@ -234,7 +244,98 @@
             </div>
         </div>
     </div>
-    <div id="about" role="tabpanel" class="row tab-pane fade"></div>
+    <div id="about" role="tabpanel" class="row tab-pane fade">
+        <div class="container">
+            <div class="panel panel-default">
+                <div class="panel-heading">States</div>
+                <div class="panel-body">
+                    <!--
+                    <div>
+                        <div class="group">
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]' x-call="turn"></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]' x-call="turn_blink, 1000"></div>
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]' x-call="turn"></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Hello</span>
+                    </div>
+                    -->
+                    <div class="panel-danger">
+                        <div class="group panel-heading">
+                            <div id="no_connection1" x-is="bulb" x-args='["blue", "blue", 0.5, 10]'></div>
+                            <div id="no_connection2" x-is="bulb" x-args='["green", "green", 0.5, 10]'></div>
+                            <div id="no_connection3" x-is="bulb" x-args='["red", "red", 0.5, 10]'></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>No connection</span>
+                    </div>
+                    <div>
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]'></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>None</span>
+                    </div>
+                    <div>
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]' x-call="turn_blink, 1000"></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]'></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Ping send/received/Touch resource</span>
+                    </div>
+                    <div class="panel-info">
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]' x-call="turn"></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]'></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Ready commit</span>
+                    </div>
+                    <div class="panel-danger">
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]' x-call="turn"></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Fail</span>
+                    </div>
+                    <div class="panel-info">
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10, "#bcbcbc"]'></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10, "#bcbcbc"]' x-call="turn_blink"></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10, "#bcbcbc"]'></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Prepare commit</span>
+                    </div>
+                    <div class="panel-success">
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]' x-call="turn"></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]' x-call="turn"></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]'></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Committed</span>
+                    </div>
+                    <div class="panel-danger">
+                        <div class="group panel-heading">
+                            <div x-is="bulb" x-args='["blue", "blue", 0.5, 10]' x-call="turn"></div>
+                            <div x-is="bulb" x-args='["green", "green", 0.5, 10]'></div>
+                            <div x-is="bulb" x-args='["red", "red", 0.5, 10]' x-call="turn"></div>
+                        </div>
+                        <span class="space"></span>
+                        <span>Rollback</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="log" role="tabpanel" class="row tab-pane fade">
         <button id="hide-ping" type="button" class="btn btn-default flex-h" data-toggle="button" aria-pressed="false" style="margin: 15px">
             <i class="glyphicon mdi mdi-filter mdi-18px"></i><span class="space"></span><span> Hide pings</span>
@@ -260,6 +361,7 @@
 <script src="js/ProgressBar.js"></script>
 <script src="js/Service.js"></script>
 <script src="js/TransactionGenerator.js"></script>
+
 <script>
     function test() {
         let data = globals.tr_generator.json;
@@ -282,8 +384,18 @@
             controller: new Controller("http://localhost:9000/debug_sse"),
             services: {},
             tr_generator: new TransactionGenerator(),
-            words: []
+            words: [],
+            auto: null
         };
+
+        globals.auto = load({
+            "bulb": Bulb
+        });
+
+        const duration = 1500;
+        setTimeout(() => globals.auto.get("no_connection1").turn_blink(duration), 0);
+        setTimeout(() => globals.auto.get("no_connection2").turn_blink(duration), duration / 3);
+        setTimeout(() => globals.auto.get("no_connection3").turn_blink(duration), 2 * duration / 3);
 
         $.get("words.txt").done((text) => {
             window.globals.words = text.split('\n').map((s) => {

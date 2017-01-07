@@ -33,12 +33,19 @@ const SseEvent = (function () {
 const EventListener = (function () {
     let EventListener = class {
         constructor(sse, parent) {
-            //EventListener.objects[parent.name] = this;
             this.parent = parent;
 
             this.sse = sse;
             this.connection = new EventSource(sse);
             this.connection.parent = this;
+            this.connection.onerror = () => {
+                if (this.parent && this.parent.setStatus)
+                    this.parent.setStatus("lost_connection")
+            };
+            this.connection.onopen = () => {
+                if (this.parent && this.parent.setStatus)
+                    this.parent.setStatus("open_connection")
+            };
             this.connection.onmessage = this.onmsg;
 
             this.node = EventListener.pattern.clone();

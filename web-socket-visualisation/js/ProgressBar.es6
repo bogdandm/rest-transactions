@@ -58,7 +58,7 @@ const ProgressBar = (function () {
     };
 
     let pattern = `
-        <div class="progress-container panel panel-primary">
+        <div class="progress-container panel panel-default">
             <div class="panel-body">
                 <h5 class="_name"></h5>
                 <div class="progress">

@@ -39,6 +39,39 @@ const EStatus = {
     COMMITTED: 5
 };
 
+function load(map) {
+    let objs = new Map();
+    $("[x-is]").each(function (i) {
+        let self = $(this);
+        let id = self.attr("id");
+        let type = self.attr("x-is");
+
+        let args = self.attr("x-args");
+        if (args)
+            args = JSON.parse(args);
+        else
+            args = [];
+        let obj = new map[type](...args);
+
+        let call = self.attr("x-call");
+        if (call) {
+            let func = call, args = [];
+            if (call.indexOf(",") !== -1) {
+                call = call.split(",");
+                func = call[0].trim();
+
+                args = JSON.parse(call[1].trim());
+                if (!args.length) args = [args]
+            }
+            obj[func](...args);
+        }
+
+        self.replaceWith(obj.body);
+        objs.set(id ? id : i, obj);
+    });
+    return objs;
+}
+
 (function ($) {
     $.fn.replaceClass = function (c1, c2) {
         this.removeClass(function (index, css) {

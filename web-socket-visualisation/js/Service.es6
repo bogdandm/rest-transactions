@@ -40,6 +40,78 @@ const Service = (function () {
             this.body.find("._bars").append(this.timeout_work.body);
         }
 
+        setStatus(status) {
+            let panel = this.body.find(".panel");
+            switch (status) {
+                case "open_connection":
+                    this.bulb_ugly.turn_blink(false);
+                    this.bulb_good.turn_blink(false);
+                    this.bulb_bad.turn_blink(false);
+                    panel.replaceClass("panel-", "panel-default");
+                    break;
+
+                case "lost_connection":
+                    const duration = 1500;
+                    setTimeout(() => this.bulb_ugly.turn_blink(duration), 0);
+                    setTimeout(() => this.bulb_good.turn_blink(duration), duration / 3);
+                    setTimeout(() => this.bulb_bad.turn_blink(duration), 2 * duration / 3);
+                    panel.replaceClass("panel-", "panel-danger");
+                    break;
+
+                case "ready_commit":
+                    panel.replaceClass("panel-", "panel-success");
+                    this.bulb_good.turn(true);
+                    break;
+
+                case "fail":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.bulb_bad.turn(true);
+                    break;
+
+                default:
+                    panel.replaceClass("panel-", "panel-primary");
+                    break;
+            }
+        }
+
+        setCStatus(status) {
+            let panel = this.cbody;
+            switch (status) {
+                case "ready_commit":
+                    panel.replaceClass("panel-", "panel-info");
+                    this.cbulb_good.turn();
+                    break;
+
+                case "fail":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.cbulb_good.turn(false);
+                    this.cbulb_bad.turn();
+                    break;
+
+                case "prepare_commit":
+                    panel.replaceClass("panel-", "panel-info");
+                    this.cbulb_good.turn_blink();
+                    break;
+
+                case "committed":
+                    panel.replaceClass("panel-", "panel-success");
+                    this.cbulb_ugly.turn();
+                    this.cbulb_good.turn();
+                    break;
+
+                case "rollback":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.cbulb_ugly.turn();
+                    this.cbulb_good.turn(false);
+                    this.cbulb_bad.turn();
+                    break;
+
+                default:
+                    panel.replaceClass("panel-", "panel-default");
+                    break;
+            }
+        }
+
         event(event) {
             switch (event.type) {
                 case "init":
@@ -86,51 +158,16 @@ const Service = (function () {
                     this.bulb_good.blink();
                     this.timeout_work.startTimer();
                     break;
-            }
-        }
-
-        setStatus(status) {
-            let panel = this.body;
-            switch (status) {
-                case "ready_commit":
-                    panel.replaceClass("panel-", "panel-success");
-                    this.bulb_good.turn(true);
-                    break;
-
-                case "fail":
-                    panel.replaceClass("panel-", "panel-danger");
-                    this.bulb_bad.turn(true);
-                    break;
 
                 default:
-                    panel.replaceClass("panel-", "panel-primary");
-                    break;
-            }
-        }
-
-        setCStatus(status) {
-            let panel = this.cbody;
-            switch (status) {
-                case "ready_commit":
-                    panel.replaceClass("panel-", "panel-success");
-                    this.cbulb_good.turn(true);
-                    break;
-
-                case "fail":
-                    panel.replaceClass("panel-", "panel-danger");
-                    this.cbulb_bad.turn(true);
-                    break;
-
-                default:
-                    panel.replaceClass("panel-", "panel-primary");
-                    break;
+                    console.warn("Unhandled event")
             }
         }
     };
 
     let service_pattern = `
         <div class="service container col-md-3">
-            <div class="panel panel-info">
+            <div class="panel panel-default">
                 <div class="panel-heading flex-h">
                     <span class="_name"></span>
                     <div class="_bulbs flex-h"></div>
@@ -145,7 +182,7 @@ const Service = (function () {
     `;
 
     let controller_pattern = `
-        <div class="controller-service panel panel-info ">        
+        <div class="controller-service panel panel-default">        
             <div class="panel-heading flex-h">
                 <span class="_name"></span>
                 <div class="_bulbs flex-h"></div>

@@ -30,20 +30,59 @@ const Controller = (function () {
         }
 
         setStatus(status) {
+            /*
+            case "ready_commit":
+            case "fail":
+            case "prepare_commit":
+            case "committed":
+            case "rollback":
+             */
             let panel = this.body.find(">.panel");
             switch (status) {
+                case "open_connection":
+                    this.bulb_ugly.turn_blink(false);
+                    this.bulb_good.turn_blink(false);
+                    this.bulb_bad.turn_blink(false);
+                    break;
+
+                case "lost_connection":
+                    const duration = 1500;
+                    setTimeout(() => this.bulb_ugly.turn_blink(duration), 0);
+                    setTimeout(() => this.bulb_good.turn_blink(duration), duration / 3);
+                    setTimeout(() => this.bulb_bad.turn_blink(duration), 2 * duration / 3);
+                    break;
+
                 case "ready_commit":
-                    panel.replaceClass("panel-", "panel-success");
-                    this.bulb_good.turn(true);
+                    panel.replaceClass("panel-", "panel-primary");
+                    this.bulb_good.turn();
                     break;
 
                 case "fail":
                     panel.replaceClass("panel-", "panel-danger");
-                    this.bulb_bad.turn(true);
+                    this.bulb_good.turn(false);
+                    this.bulb_bad.turn();
+                    break;
+
+                case "prepare_commit":
+                    panel.replaceClass("panel-", "panel-primary");
+                    this.bulb_good.turn_blink();
+                    break;
+
+                case "committed":
+                    panel.replaceClass("panel-", "panel-success");
+                    this.bulb_ugly.turn();
+                    this.bulb_good.turn();
+                    break;
+
+                case "rollback":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.bulb_ugly.turn();
+                    this.bulb_good.turn(false);
+                    this.bulb_bad.turn();
                     break;
 
                 default:
-                    panel.replaceClass("panel-", "panel-primary");
+                    panel.replaceClass("panel-", "panel-default");
                     break;
             }
         }
@@ -77,6 +116,14 @@ const Controller = (function () {
                     this.init(event.data);
                     break;
 
+                case "ready_commit":
+                case "fail":
+                case "prepare_commit":
+                case "committed":
+                case "rollback":
+                    this.setStatus(event.type);
+                    break;
+
                 case "init_child":
                     break;
 
@@ -93,31 +140,29 @@ const Controller = (function () {
                     break;
 
                 case "fail_child":
+                case "committed_child":
+                case "rollback_child":
                     chid = event.data;
                     service = window.globals.services[chid];
-                    service.setCStatus("fail");
+                    service.setCStatus(event.type.replace("_child", ""));
                     break;
 
                 case "ready_commit_child":
+                case "prepare_commit_child":
                     chid = event.data["chid"];
                     service = window.globals.services[chid];
-                    service.setCStatus("ready_commit");
+                    service.setCStatus(event.type.replace("_child", ""));
                     break;
 
-                case "fail":
-                    this.setStatus("fail");
-                    break;
-
-                case "ready_commit":
-                    this.setStatus("ready_commit");
-                    break;
+                default:
+                    console.warn("Unhandled event")
             }
         }
     };
 
     let pattern = `
         <div id="controller" class="container col-md-4">
-            <div class="panel panel-primary">
+            <div class="panel panel-default">
                 <div class="panel-heading flex-h">
                     <span class="_name">Controller</span>
                     <div class="_bulbs flex-h"></div>

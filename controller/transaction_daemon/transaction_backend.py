@@ -65,23 +65,32 @@ class Transaction(ATransaction):
 	@g_async
 	def _spawn(self):
 		self.threads += [ch.run() for ch in self.childes.values()]  # THREAD:N, blocked
-		self.__wait_child_fail(), self.__wait_childes_ready_commit()
+		self.__wait_child_fail(), self.__wait_childes_ready_commit()  # THREAD: 2, blocked
 		wait((self.ready_commit, self.fail), count=1)  # BLOCK # LISTENER
 		if self.ready_commit.ready():
 			debug_SSE.event({"event": "ready_commit", "t": datetime.now()})  # DEBUG ready_commit
+			self.prepare_commit()
 		elif self.fail.ready():
 			debug_SSE.event({"event": "fail", "t": datetime.now()})  # DEBUG fail
+			self.rollback()
 
 		pass  # killall(self.threads)  # THREAD:-?
 
-	# TODO: commit | rollback
-	@g_async
-	def commit(self):
-		pass  # TODO
+	def prepare_commit(self):
+		debug_SSE.event({"event": "prepare_commit", "t": datetime.now()})  # DEBUG prepare_commit
+		res = wait([ch.prepare_commit() for ch in self.childes.values()])
+		if all([r.value for r in res]):
+			self.commit()
+		else:
+			self.rollback()
 
-	@g_async
+	def commit(self):
+		wait([ch.commit() for ch in self.childes.values()])
+		debug_SSE.event({"event": "committed", "t": datetime.now()})  # DEBUG committed
+
 	def rollback(self):
-		pass  # TODO
+		wait([ch.rollback() for ch in self.childes.values()])
+		debug_SSE.event({"event": "rollback", "t": datetime.now()})  # DEBUG rollback
 
 	@g_async
 	def __wait_childes_ready_commit(self):  # LISTENER
@@ -153,9 +162,7 @@ class ChildTransaction(ATransaction):
 			self.parent.childes[self.key] = self
 			self.ping_timeout = js["ping-timeout"] / 1000
 
-			# noinspection PyTypeChecker
 			self.parent.threads.append(self.__ping())  # THREAD:1, loop
-			# noinspection PyTypeChecker
 			self.parent.threads.append(self.__wait_response())  # THREAD:1
 
 	@g_async
@@ -163,7 +170,7 @@ class ChildTransaction(ATransaction):
 		while not (self.committed.ready() or self.fail.ready()):
 			debug_SSE.event({"event": "ping_child", "t": datetime.now(), "data": self.id})  # DEBUG ping_child
 			try:
-				resp = request_lib.get(self.service.url + "/transactions/" + str(self.remote_id), headers={
+				resp = request_lib.get("{}/transactions/{}".format(self.service.url, self.remote_id), headers={
 					"X-Transaction": self.key
 				}, timeout=self.ping_timeout)  # BLOCK, timeout
 			except request_lib.RequestException:
@@ -179,7 +186,6 @@ class ChildTransaction(ATransaction):
 	@g_async
 	def __wait_response(self):  # LISTENER
 		try:
-			# TODO: Get query params test
 			resp = request_lib.request(self.method, self.service.url + self.url, headers={
 				"X-Transaction": self.key, **self.headers
 			}, json=self.data, timeout=self.service.timeout)  # BLOCK, timeout
@@ -202,9 +208,57 @@ class ChildTransaction(ATransaction):
 		self.fail.set()  # EMIT(fail)
 
 	@g_async
+	def prepare_commit(self):
+		result = True
+		try:
+			resp = request_lib.get("{}/transactions/{}?prepare".format(self.service.url, str(self.remote_id)), headers={
+				"X-Transaction": self.key
+			}, timeout=self.ping_timeout)  # BLOCK, timeout
+			sleep()
+		except request_lib.RequestException:
+			self.fail.set()  # EMIT(fail)
+			result = False
+		else:
+			if resp.status_code != 200:
+				self.fail.set()  # EMIT(fail)
+				result = False
+
+		debug_SSE.event({
+			"event": "prepare_commit_child",
+			"t": datetime.now(),
+			"data": {"chid": self.id, "result": result}
+		})  # DEBUG prepare_commit_child
+		return result
+
+	@g_async
 	def commit(self):
-		pass  # TODO
+		try:
+			resp = request_lib.post("{}/transactions/{}".format(self.service.url, str(self.remote_id)), headers={
+				"X-Transaction": self.key
+			}, timeout=self.ping_timeout)  # BLOCK, timeout
+			sleep()
+		except request_lib.RequestException:
+			print("Commit fail!")
+			self.fail.set()  # EMIT(fail)
+			return False
+		if resp.status_code != 200:
+			print("Commit fail!")
+			self.fail.set()  # EMIT(fail)
+			return False
+		debug_SSE.event({
+			"event": "committed_child",
+			"t": datetime.now(),
+			"data": self.id
+		})  # DEBUG committed_child
+		self.committed.set()
+		return True
 
 	@g_async
 	def rollback(self):
-		pass  # TODO
+		self.fail.set()  # auto rollback by timeout
+		debug_SSE.event({
+			"event": "rollback_child",
+			"t": datetime.now(),
+			"data": self.id
+		})  # DEBUG rollback_child
+		pass  # TODO: do service rollback

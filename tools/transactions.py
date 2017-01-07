@@ -57,6 +57,9 @@ class ATransaction(metaclass=ABCMeta):
 	def _spawn(self):
 		pass
 
+	def prepare_commit(self) -> bool:
+		pass
+
 	def commit(self):
 		pass
 
