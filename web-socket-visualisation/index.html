@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>2PC</title>
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="node_modules/mdi/css/materialdesignicons.min.css"/>
+    <link rel="stylesheet" href="css/anim.css"/>
+    <style>
+        html, body {
+            min-height: 100%;
+            background-color: #fafafa;
+        }
+
+        body {
+            padding-top: 55px;
+        }
+
+        h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
+            margin-top: 0;
+        }
+
+        .panel-group:last-child, :not(.flex-h) > .panel:last-child,
+        .progress:last-child, .controller-service:last-child {
+            margin-bottom: 0;
+        }
+
+        .panel > pre.panel-body {
+            margin-bottom: 0;
+            background-color: white;
+            border: none;
+        }
+
+        .panel > pre.panel-body:before, .panel > pre.panel-body:after {
+            display: none;
+        }
+
+        .btn.btn-icon {
+            padding: 6px;
+        }
+
+        .flex-h {
+            display: flex !important;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flex-c-c {
+            display: flex !important;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .space {
+            display: inline-block;
+            width: 0.5em;
+        }
+
+        .bulb {
+            --size: 6px;
+            --flash-size: 800%;
+            margin: 0 calc(var(--size));
+            width: var(--size);
+            height: var(--size);
+            position: relative;
+            border-radius: 50%;
+        }
+
+        .bulb > .flash {
+            position: absolute;
+            left: calc((var(--flash-size) - 100%) / 2 * -1);
+            top: calc((var(--flash-size) - 100%) / 2 * -1);
+            width: var(--flash-size);
+            height: var(--flash-size);
+            border-radius: 50%;
+        }
+
+        .container > .panel {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .controller-service {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .controller-service > div:nth-child(1) {
+            margin-bottom: 5px;
+        }
+
+        .service ._bulbs > .bulb {
+            margin-left: 5px;
+        }
+
+        td > .json-formatter-row.json-formatter-open {
+            border-left: #ddd 1px solid;
+        }
+
+        .json-formatter-open {
+            padding-left: 5px;
+            border-left: #e6e6e6 1px dashed;
+        }
+
+        #log-wrapper {
+            align-items: flex-start;
+        }
+
+        #log-wrapper > .panel {
+            max-width: 100%;
+            width: calc(100% - 10 * 10px);
+            min-width: 50px;
+            margin: 15px;
+            overflow-x: hidden;
+            transition: flex-shrink 0.1s ease, box-shadow 0.3s ease;
+        }
+
+        #log-wrapper > .panel * {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        #log-wrapper > .panel:hover {
+            box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.1), 0 2px 3px 0 rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+
+        /*#tr_generator .panel-body .input-group {
+            width: 100%;
+        }*/
+
+        #tr_generator_params .input-group-addon:first-child {
+            min-width: 170px;
+            text-align: left;
+        }
+
+        #metafilter {
+            position: absolute;
+            top: 70px;
+            left: 15px;
+        }
+
+        #sandbox {
+            position: absolute;
+            top: 55px;
+            left: 0;
+            height: calc(100% - 55px);
+            width: 100%;
+            margin: 0;
+        }
+
+        #hide-ping[aria-pressed=true] + #log-wrapper tr[metatype*=ping] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar"
+                    aria-expanded="false" aria-controls="navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">2 Phase Commit</a>
+        </div>
+        <div id="navbar" class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+                <li class="active"><a href="#main" data-toggle="tab">Visualisation</a></li>
+                <li><a href="#log" data-toggle="tab">Event log</a></li>
+                <li><a href="#tr_generator" data-toggle="tab">Transaction generator</a></li>
+                <li><a href="#about" data-toggle="tab">About</a></li>
+            </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</nav>
+<div class="container tab-content">
+    <div id="main" role="tabpanel" class="row tab-pane fade in active">
+        <!-- Controller -->
+        <!-- Services -->
+    </div>
+    <div id="tr_generator" role="tabpanel" class="row tab-pane fade">
+        <div class="container col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading flex-h">
+                    Parameters
+                </div>
+                <div id="tr_generator_params" class="panel-body">
+                    <div class="input-group">
+                        <span class="input-group-addon">Global timeout</span>
+                        <input id="i_gt" type="number" class="form-control" placeholder="ms"
+                               min="0" max="3600000" value="10000">
+                    </div>
+                    <br>
+                    <div class="input-group">
+                        <span class="input-group-addon">Number of Services</span>
+                        <input id="i_ns" type="number" class="form-control" placeholder="0-9"
+                               min="0" max="9" value="2">
+                    </div>
+                    <br>
+                    <div class="input-group">
+                        <span class="input-group-addon">Service local timeout</span>
+                        <input id="i_lt0" type="number" class="form-control" placeholder="ms"
+                               min="0" max="3600000" value="2000">
+                        <span class="input-group-addon">to</span>
+                        <input id="i_lt1" type="number" class="form-control" placeholder="ms"
+                               min="0" max="3600000" value="5000">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading flex-h">
+                    JSON
+                </div>
+                <div class="panel-body">
+                    <pre id="tr_generator_json" class="clearfix"></pre>
+                    <div class="input-group">
+                        <span class="input-group-btn">
+                            <button id="test_btn" class="btn btn-default" type="button">Test</button>
+                            <button id="go_btn" class="btn btn-default" type="button">Go!</button>
+                        </span>
+                        <input type="text" class="form-control" placeholder="Controller URL"
+                               value="http://localhost:5000/api/alpha/transactions">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="about" role="tabpanel" class="row tab-pane fade"></div>
+    <div id="log" role="tabpanel" class="row tab-pane fade">
+        <button id="hide-ping" type="button" class="btn btn-default flex-h" data-toggle="button" aria-pressed="false" style="margin: 15px">
+            <i class="glyphicon mdi mdi-filter mdi-18px"></i><span class="space"></span><span> Hide pings</span>
+        </button>
+        <div id="log-wrapper" class="flex-h">
+            <!-- Logs -->
+        </div>
+    </div>
+</div>
+
+<script src="node_modules/jquery/dist/jquery.js"></script>
+<script src="node_modules/babel-polyfill/dist/polyfill.min.js"></script>
+<!--<script src="node_modules/handlebars/dist/handlebars.js"></script>-->
+<script src="node_modules/bootstrap/dist/js/bootstrap.js"></script>
+<script src="node_modules/json-formatter-js/dist/json-formatter.js"></script>
+<script src="node_modules/sortedlist/SortedList.js"></script>
+<script src="node_modules/dateformat/lib/dateformat.js"></script>
+
+<script src="js/main.js"></script>
+<script src="js/Bulb.js"></script>
+<script src="js/Controller.js"></script>
+<script src="js/EventListener.js"></script>
+<script src="js/ProgressBar.js"></script>
+<script src="js/Service.js"></script>
+<script src="js/TransactionGenerator.js"></script>
+<script>
+    function test() {
+        let data = globals.tr_generator.json;
+        $('[href="#main"]').tab("show");
+        globals.controller.sse_listener.onmsg({
+            data: JSON.stringify({
+                event: "init",
+                t: {
+                    ["@datetime"]: (new Date()).valueOf() / 1000
+                },
+                data
+            })
+        });
+    }
+
+    $(() => {
+        Controller.main_node = $("#main");
+        Controller.log_node = $("#log-wrapper");
+        window.globals = {
+            controller: new Controller("http://localhost:9000/debug_sse"),
+            services: {},
+            tr_generator: new TransactionGenerator(),
+            words: []
+        };
+
+        $.get("words.txt").done((text) => {
+            window.globals.words = text.split('\n').map((s) => {
+                return s.slice(0, -1)
+            });
+            window.globals.tr_generator.render();
+        });
+
+        let tr_generator_params = $("#tr_generator_params");
+        window.globals.tr_generator.connect(tr_generator_params, $("#tr_generator_json"));
+        tr_generator_params.find("input").trigger("input");
+
+        $("#test_btn").click(test);
+
+        $("#go_btn").click(function () {
+            let url = $(this).parent().parent().find(">input").val();
+            $.ajax(url, {
+                method: "POST",
+                data: JSON.stringify(globals.tr_generator.json),
+                contentType: "application/json; charset=utf-8"
+            });
+            $('[href="#main"]').tab("show");
+        });
+
+        /*window.globals.controller.sse_listener.onmsg({
+         data: `{"event": "test", "t": {"@datetime":${(new Date()).valueOf() / 1000}}, "data": "hello"}`
+         });*/
+    });
+</script>
+</body>
+</html>

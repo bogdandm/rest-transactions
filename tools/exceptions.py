@@ -4,13 +4,19 @@ from abc import ABCMeta
 
 
 class AException(Exception, metaclass=ABCMeta):
-	code = None
-	n = None
-	desc = None
+	code = None  # type: int
+	n = None  # type: int
+	desc = None  # type: str
 
 	@property
 	def data(self):
-		return self.args[0] if len(self.args) else None
+		if len(self.args):
+			if len(self.args) == 1:
+				return self.args[0]
+			else:
+				return self.args
+		else:
+			return None
 
 
 class DbTypeException(AException):
@@ -73,4 +79,8 @@ catalog = dict(inspect.getmembers(
 ))
 
 if __name__ == '__main__':
-	print(catalog)
+	import json
+
+	print(json.dumps({
+						 k: repr(v) for k, v in catalog.items()
+						 }, indent=4))

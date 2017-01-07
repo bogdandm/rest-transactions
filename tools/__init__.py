@@ -1,12 +1,17 @@
+import collections
+import logging
 import numbers
 import time
+import typing
 from base64 import b64encode, b64decode
 from datetime import datetime
-from typing import Iterable, Union, Any, Iterator, List, Tuple, Callable
+from typing import Iterable, Union, Any, Iterator, List, Tuple, Callable, Set, Dict
 
 from bson import ObjectId
 from mysql.connector import IntegrityError
 
+KT = typing.TypeVar('KT')
+VT = typing.TypeVar('VT')
 
 def timeit(f):
 	"""
@@ -42,7 +47,7 @@ def not_none(*args, default=None):
 
 def dfilter(d: dict, *keys: Iterable, reverse=False) -> dict:
 	"""
-	Filter dictionary (remove all items that not in keys).
+	Filter dictionary (remove all items that not in keys). Create new dict
 
 	>>> dfilter({"a": 1, "b": 2, "c": 3}, "a")
 	{'a': 1}
@@ -166,11 +171,11 @@ def rvg(g: Iterator):
 
 def _load_types():
 	global _transform_types
-	_transform_types = dict(map(lambda t: ('@' + t.__name__, t), _transform.keys()))
+	_transform_types = {'@' + t.__name__: t for t in _transform.keys()}
 
 
 _transform = {
-	datetime: (lambda v: v.timestamp(), lambda v: datetime.fromtimestamp(v)),
+	datetime: (datetime.timestamp, datetime.fromtimestamp),
 	bytes: (
 		lambda v: b64encode(v, b"*-").replace(b"=", b"_").decode('utf-8'),
 		lambda v: b64decode(v.replace("_", "="), b"*-")
@@ -181,18 +186,20 @@ _transform = {
 _transform_types = {}
 _load_types()
 
+T = typing.TypeVar('T')
 
-def register_type(t, l: Tuple[Callable, Callable]):
+
+def register_type(type_, serialisator_deserialisator: Tuple[Callable[[T], str], Callable[[str], T]]):
 	"""
 	Register new type to transform.
 
-	:param t: type
+	:param type_: type
 	:param l: Tuple(serialisator, deserialisator)
 	:return:
 	"""
 	global _transform
-	if t not in _transform:
-		_transform[t] = l
+	if type_ not in _transform:
+		_transform[type_] = serialisator_deserialisator
 		_load_types()
 
 
@@ -215,7 +222,7 @@ def transform_json_types(data: Union[dict, list], direction=0):
 	global _transform, _transform_types
 	for k, v in data.items() if isinstance(data, dict) else enumerate(data):
 		t = type(v)
-		if t is list or t is dict and (len(v) > 1 or not next(v.keys().__iter__()).startswith("@")):
+		if t is list or t is dict and (len(v) != 1 or not next(iter(v.keys()), "").startswith("@")):
 			transform_json_types(data[k], direction=direction)
 			continue
 
@@ -228,3 +235,128 @@ def transform_json_types(data: Union[dict, list], direction=0):
 				if t in _transform_types:
 					data[k] = _transform[_transform_types[t]][direction](v[t])
 	return data
+
+
+class _Null:
+	pass
+
+
+class MultiDict(typing.MutableMapping[KT, VT]):
+	# TODO: docs
+	def __init__(self, init_dict: Dict[KT, VT] = None):
+		self._key_val = dict()  # type: Dict[KT, VT]
+		self._val_id = dict()  # type: Dict[VT, ObjectId]
+		self._id_keys = dict()  # type: Dict[ObjectId, Set[KT]]
+
+		if init_dict is not None:
+			for k, v in init_dict.items():
+				self[k] = v
+
+	def _full_val(self, *args, value: VT = _Null(), key: KT = _Null(), _id: ObjectId = _Null()) \
+			-> Tuple[ObjectId, Set[KT], VT]:
+		if type(value) is not _Null:
+			_id = self._val_id[value]
+			keys = self._id_keys[_id]
+			return _id, keys, value
+		if type(key) is not _Null:
+			value = self._key_val[key]
+			_id = self._val_id[value]
+			keys = self._id_keys[_id]
+			return _id, keys, value
+		if type(_id) is not _Null:
+			keys = self._id_keys[_id]
+			value = self._key_val[next(iter(keys))]
+			return _id, keys, value
+
+	def __getitem__(self, key: KT) -> VT:
+		return self._key_val[key]
+
+	def get(self, key: KT, default: VT = None):
+		return self.__getitem__(key) if key in self._key_val else default
+
+	def __setitem__(self, key: KT, value: VT):
+		try:
+			old_id, old_keys, old_value = self._full_val(key=key)
+		except KeyError:
+			pass
+		else:
+			if old_value is value:
+				return
+
+			del self[key]
+
+		try:
+			old_id, old_keys, old_value = self._full_val(value=value)
+		except KeyError:
+			self._key_val[key] = value
+			_id = self._val_id[value] = ObjectId()
+			self._id_keys[_id] = {key}
+		else:  # value exists
+			self._key_val[key] = value
+			self._id_keys[old_id].add(key)
+
+	def __delitem__(self, key: KT):
+		if key in self._key_val:
+			old_id, old_keys, old_value = self._full_val(key=key)
+			del self._key_val[key]
+			old_keys.remove(key)
+			if len(old_keys) == 0:
+				self.remove(old_value)
+		else:
+			raise KeyError(key)
+
+	def __len__(self) -> int:
+		return self._val_id.__len__()
+
+	def __iter__(self):
+		for val, _id in self._val_id.items():
+			keys = self._id_keys[_id]
+			yield keys
+
+	def keys(self):
+		return collections.KeysView(self)
+
+	def values(self):
+		return self._val_id.keys()
+
+	def items(self):
+		for keys in self.keys():
+			k = next(iter(keys))
+			yield keys, self._key_val[k]
+
+	def remove(self, value: VT):
+		if value in self._val_id:
+			_id = self._val_id[value]
+			for k in self._id_keys[_id]:
+				del self._key_val[k]
+			del self._id_keys[_id]
+			del self._val_id[value]
+		else:
+			raise KeyError(value)
+
+	def __repr__(self):
+		return "<MultiDict {{{}}}>".format(", ".join(map(
+			lambda k_v: "{}: {}".format(k_v[0], k_v[1].__repr__()),
+			self.items()
+		)))
+
+	def __str__(self):
+		return "{{{}}}".format(", ".join(map(
+			lambda k_v: "{}: {}".format(k_v[0], k_v[1].__repr__()),
+			self.items()
+		)))
+
+
+class LevelFilter(logging.Filter):
+	def __init__(self, param):
+		super().__init__()
+		self.param = param
+
+	def filter(self, record: logging.LogRecord) -> bool:
+		if self.param is None:
+			return True
+		elif isinstance(self.param, str):
+			return record.levelname == self.param
+		elif isinstance(self.param, Iterable):
+			return record.levelname in self.param
+		return False

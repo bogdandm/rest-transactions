@@ -2,14 +2,14 @@ import json
 import socket
 from abc import ABCMeta
 from re import match
-from typing import Tuple
+from typing import Tuple, Union
 
 from tools import transform_json_types
 
 
 def receive(socket_obj: socket.SocketType, block=1024) -> bytes:
 	"""
-	Read bytes from socket until find "\0"
+	Read bytes from socket until find b"\0"
 
 	:param socket_obj:
 	:param block:
@@ -24,8 +24,7 @@ def receive(socket_obj: socket.SocketType, block=1024) -> bytes:
 
 
 class ATcpException(Exception, metaclass=ABCMeta):
-	def __init__(self, data):
-		super().__init__(data)
+	pass
 
 
 class Tcp500(ATcpException):
@@ -33,7 +32,7 @@ class Tcp500(ATcpException):
 
 
 class Tcp404(ATcpException):
-	status = 500
+	status = 404
 
 
 class ATcpPacket(metaclass=ABCMeta):
@@ -41,12 +40,20 @@ class ATcpPacket(metaclass=ABCMeta):
 	Encode & decode data in format b"<str>\n<json>\0"
 	"""
 
-	def __init__(self, header, data):
+	def __init__(self, header: Union[str, int], data: Union[ATcpException, dict, list, str, int]):
 		self.header = header
+		if isinstance(data, ATcpException):
+			data = {data.__class__.__name__: data.args}
 		self.data = data
 
 	@classmethod
 	def decode(cls, data: bytes) -> 'ATcpPacket':
+		"""
+		Fabric class method
+
+		:param data:
+		:return:
+		"""
 		try:
 			header, js = str(data[:-1], encoding="utf-8").split("\n", 1)
 			if match("^\W*$", js):
@@ -76,10 +83,7 @@ class ATcpPacket(metaclass=ABCMeta):
 
 
 class Request(ATcpPacket):
-	def __init__(self, header, data):
-		if isinstance(data, ATcpException):
-			data = {data.__class__.__name__: data.args}
-		super().__init__(header, data)
+	pass
 
 
 class Response(ATcpPacket):

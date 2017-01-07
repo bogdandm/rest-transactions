@@ -9,8 +9,8 @@
       }
     },
     "timeout": {
-      "description" : "timeout in ms",
-      "type": "integer",
+      "description": "timeout in ms",
+      "type": "number",
       "minimum": 0,
       "maximum": 3600000
     }
@@ -36,7 +36,10 @@
               "type": "string"
             },
             "timeout": {
-              "type": "string"
+              "description": "timeout in ms",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600000
             }
           },
           "required": [
@@ -98,8 +101,7 @@
         "url",
         "method",
         "data",
-        "headers",
-        "then"
+        "headers"
       ]
     },
     "pattern": {

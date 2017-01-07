@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "filters": {
+    "myfilter": {
+      "()": "tools.LevelFilter",
+      "param": ["INFO", "WARNING"]
+    }
+  },
+  "formatters": {
+    "console_info": {
+      "class": "logging.Formatter",
+      "format": "%(asctime)-23s | %(levelname)-10s| %(message)s"
+    }
+  },
+  "handlers": {
+    "console_info": {
+      "class": "logging.StreamHandler",
+      "level": "INFO",
+      "formatter": "console_info"
+    }
+  },
+  "root": {
+    "level": "DEBUG",
+    "handlers": ["console_info"]
+  }
+}

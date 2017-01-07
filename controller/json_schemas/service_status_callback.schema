@@ -9,13 +9,7 @@
       "type": "string"
     },
     "status": {
-      "type": "string",
-      "enum": [
-        "READY",
-        "FAIL",
-        "TIMEOUT",
-        "IN_PROCESS"
-      ]
+      "type": "string"
     },
     "response": {
       "type": "object"
