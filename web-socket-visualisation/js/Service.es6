@@ -24,9 +24,9 @@ const Service = (function () {
             this.cbulb_bad = new Bulb(...Bulb.red, 0.5, 10);
             this.cbody.find('._bulbs').append(this.cbulb_bad.body);
 
-            this.c_local_ping = new ProgressBar(null, timeout_local, (v) => formatTime(v, "s"), false);
-            this.cbody.find("._bars").append(this.c_local_ping.body);
-            this.c_local_ping.startTimer();
+            this.c_local_timeout = new ProgressBar(null, timeout_local, (v) => formatTime(v, "s"), false);
+            this.cbody.find("._bars").append(this.c_local_timeout.body);
+            this.c_local_timeout.startTimer();
 
             this.sse_listener = new EventListener(sse, this);
         }
@@ -55,21 +55,46 @@ const Service = (function () {
                     setTimeout(() => this.bulb_ugly.turn_blink(duration), 0);
                     setTimeout(() => this.bulb_good.turn_blink(duration), duration / 3);
                     setTimeout(() => this.bulb_bad.turn_blink(duration), 2 * duration / 3);
-                    panel.replaceClass("panel-", "panel-danger");
+                    panel.replaceClass("panel-", "panel-warning");
                     break;
 
                 case "ready_commit":
-                    panel.replaceClass("panel-", "panel-success");
-                    this.bulb_good.turn(true);
+                    panel.replaceClass("panel-", "panel-info");
+                    this.bulb_good.turn();
                     break;
 
                 case "fail":
                     panel.replaceClass("panel-", "panel-danger");
-                    this.bulb_bad.turn(true);
+                    this.timeout_work.stopTimer();
+                    this.timeout_ping.stopTimer();
+                    this.bulb_good.turn(false);
+                    this.bulb_bad.turn();
+                    break;
+
+                case "prepare_commit":
+                    panel.replaceClass("panel-", "panel-primary");
+                    this.bulb_good.turn_blink();
+                    break;
+
+                case "committed":
+                    panel.replaceClass("panel-", "panel-success");
+                    this.timeout_work.stopTimer();
+                    this.timeout_ping.stopTimer();
+                    this.bulb_ugly.turn();
+                    this.bulb_good.turn();
+                    break;
+
+                case "rollback":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.timeout_work.stopTimer();
+                    this.timeout_ping.stopTimer();
+                    this.bulb_ugly.turn();
+                    this.bulb_good.turn(false);
+                    this.bulb_bad.turn();
                     break;
 
                 default:
-                    panel.replaceClass("panel-", "panel-primary");
+                    panel.replaceClass("panel-", "panel-default");
                     break;
             }
         }
@@ -84,6 +109,7 @@ const Service = (function () {
 
                 case "fail":
                     panel.replaceClass("panel-", "panel-danger");
+                    this.c_local_timeout.stopTimer();
                     this.cbulb_good.turn(false);
                     this.cbulb_bad.turn();
                     break;
@@ -95,12 +121,14 @@ const Service = (function () {
 
                 case "committed":
                     panel.replaceClass("panel-", "panel-success");
+                    this.c_local_timeout.stopTimer();
                     this.cbulb_ugly.turn();
                     this.cbulb_good.turn();
                     break;
 
                 case "rollback":
                     panel.replaceClass("panel-", "panel-danger");
+                    this.c_local_timeout.stopTimer();
                     this.cbulb_ugly.turn();
                     this.cbulb_good.turn(false);
                     this.cbulb_bad.turn();
@@ -114,17 +142,19 @@ const Service = (function () {
 
         event(event) {
             switch (event.type) {
+                case "ready_commit":
+                case "fail":
+                case "prepare_commit":
+                case "committed":
+                case "rollback":
+                    this.setStatus(event.type);
+                    break;
+
                 case "init":
                     this.init_timeouts(event.data["ping_timeout"] * 2, event.data["result_timeout"]);
                     this.bulb_ugly.blink();
                     this.bulb_good.blink();
                     this.bulb_bad.blink();
-                    break;
-
-                case "fail":
-                    this.setStatus("fail");
-                    this.timeout_work.stopTimer();
-                    this.timeout_ping.stopTimer();
                     break;
 
                 case "wait_ping":
@@ -137,30 +167,13 @@ const Service = (function () {
                     this.bulb_ugly.blink();
                     break;
 
-                case "ready_commit":
-                    this.setStatus("ready_commit");
-                    this.timeout_work.stopTimer();
-                    break;
-
-                case "rollback":
-                    this.bulb_bad.turn(true);
-                    this.timeout_work.stopTimer();
-                    this.timeout_ping.stopTimer();
-                    break;
-
-                case "commit":
-                    this.bulb_good.turn(true);
-                    this.timeout_work.stopTimer();
-                    this.timeout_ping.stopTimer();
-                    break;
-
                 case "touch":
                     this.bulb_good.blink();
                     this.timeout_work.startTimer();
                     break;
 
                 default:
-                    console.warn("Unhandled event")
+                    console.warn("Unhandled event", event)
             }
         }
     };

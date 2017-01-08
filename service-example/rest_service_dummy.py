@@ -22,8 +22,8 @@ from tools.transactions import ATransaction
 
 app = None  # type: Application
 
-PING = (4, 10)
-WORK = (30, 60)
+PING = (2, 5)
+WORK = (10, 30)
 
 
 class TransactionDummy(ATransaction):
@@ -68,15 +68,17 @@ class TransactionDummy(ATransaction):
 	def ping_timeout_thread(self):
 		while not (self.committed.ready() or self.fail.ready()):
 			debug_SSE.event({"event": "wait_ping", "t": datetime.now(), "data": None})  # DEBUG wait_ping
-			w = wait((self._ping,), timeout=self.ping_timeout * 2)  # BLOCK, timeout
+			w = wait((self._ping, self.committed, self.fail),
+					 timeout=self.ping_timeout * 2, count=1)  # BLOCK, timeout
 			if not len(w):
 				debug_SSE.event({"event": "fail", "t": datetime.now(), "data": "ping timeout"})  # DEBUG ping timeout
 				self.fail.set()  # EMIT(fail)
 				break
 
-			debug_SSE.event({"event": "ping", "t": datetime.now(), "data": None})  # DEBUG ping
-			self._ping.clear()  # EMIT(-ping)
-			sleep()
+			if self._ping.ready():
+				debug_SSE.event({"event": "ping", "t": datetime.now(), "data": None})  # DEBUG ping
+				self._ping.clear()  # EMIT(-ping)
+				sleep()
 
 	def do_work(self, resource):
 		self.result_thread_obj = self.result_thread(resource)  # THREAD:1
@@ -102,19 +104,23 @@ class TransactionDummy(ATransaction):
 		else:
 			raise Exception("error during work")
 
-	def ping(self):
+	def ping(self, prepare=False) -> bool:
 		if not (self.fail.ready() or self.committed.ready()):
 			self._ping.set()  # EMIT(ping)
-			return True
+			if prepare:
+				debug_SSE.event({"event": "prepare_commit", "t": datetime.now(), "data": None})  # DEBUG prepare_commit
+				return self.ready_commit.ready()
+			else:
+				return True
 		return False
 
 	def commit(self):
 		if not self.fail.ready():
 			if self.ready_commit.ready() and self.result.ready():
 				self.committed.set()  # EMIT(ping)
-				debug_SSE.event({"event": "commit", "t": datetime.now(), "data": None})  # DEBUG commit
+				debug_SSE.event({"event": "committed", "t": datetime.now(), "data": None})  # DEBUG commit
 			else:
-				self.fail.set()
+				raise Exception("error during commit")
 
 	def rollback(self):
 		self.fail.set()  # EMIT(fail)
@@ -150,7 +156,7 @@ class Application(EmptyApp):
 			key = request.headers["X-Transaction"]
 			if tr is None or tr.key != key:
 				raise NotFound
-			return {"alive": tr.ping()}
+			return {"alive": tr.ping("prepare" in request.args)}
 
 		@self.route("/transactions/<trid>", methods=["POST"])
 		@json()

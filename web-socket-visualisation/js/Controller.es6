@@ -29,64 +29,6 @@ const Controller = (function () {
             }
         }
 
-        setStatus(status) {
-            /*
-            case "ready_commit":
-            case "fail":
-            case "prepare_commit":
-            case "committed":
-            case "rollback":
-             */
-            let panel = this.body.find(">.panel");
-            switch (status) {
-                case "open_connection":
-                    this.bulb_ugly.turn_blink(false);
-                    this.bulb_good.turn_blink(false);
-                    this.bulb_bad.turn_blink(false);
-                    break;
-
-                case "lost_connection":
-                    const duration = 1500;
-                    setTimeout(() => this.bulb_ugly.turn_blink(duration), 0);
-                    setTimeout(() => this.bulb_good.turn_blink(duration), duration / 3);
-                    setTimeout(() => this.bulb_bad.turn_blink(duration), 2 * duration / 3);
-                    break;
-
-                case "ready_commit":
-                    panel.replaceClass("panel-", "panel-primary");
-                    this.bulb_good.turn();
-                    break;
-
-                case "fail":
-                    panel.replaceClass("panel-", "panel-danger");
-                    this.bulb_good.turn(false);
-                    this.bulb_bad.turn();
-                    break;
-
-                case "prepare_commit":
-                    panel.replaceClass("panel-", "panel-primary");
-                    this.bulb_good.turn_blink();
-                    break;
-
-                case "committed":
-                    panel.replaceClass("panel-", "panel-success");
-                    this.bulb_ugly.turn();
-                    this.bulb_good.turn();
-                    break;
-
-                case "rollback":
-                    panel.replaceClass("panel-", "panel-danger");
-                    this.bulb_ugly.turn();
-                    this.bulb_good.turn(false);
-                    this.bulb_bad.turn();
-                    break;
-
-                default:
-                    panel.replaceClass("panel-", "panel-default");
-                    break;
-            }
-        }
-
         init(data) {
             this.global_timeout.setMax(data.timeout);
             this.global_timeout.startTimer();
@@ -104,6 +46,69 @@ const Controller = (function () {
                 if (Controller.log_node !== null) {
                     Controller.log_node.append(service.sse_listener.node);
                 }
+            }
+        }
+
+        setStatus(status) {
+            /*
+             case "ready_commit":
+             case "fail":
+             case "prepare_commit":
+             case "committed":
+             case "rollback":
+             */
+            let panel = this.body.find(">.panel");
+            switch (status) {
+                case "open_connection":
+                    this.bulb_ugly.turn_blink(false);
+                    this.bulb_good.turn_blink(false);
+                    this.bulb_bad.turn_blink(false);
+                    panel.replaceClass("panel-", "panel-default");
+                    break;
+
+                case "lost_connection":
+                    const duration = 1500;
+                    setTimeout(() => this.bulb_ugly.turn_blink(duration), 0);
+                    setTimeout(() => this.bulb_good.turn_blink(duration), duration / 3);
+                    setTimeout(() => this.bulb_bad.turn_blink(duration), 2 * duration / 3);
+                    panel.replaceClass("panel-", "panel-warning");
+                    break;
+
+                case "ready_commit":
+                    panel.replaceClass("panel-", "panel-primary");
+                    this.bulb_good.turn();
+                    break;
+
+                case "fail":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.global_timeout.stopTimer();
+                    this.bulb_good.turn(false);
+                    this.bulb_bad.turn();
+                    break;
+
+                case "prepare_commit":
+                    panel.replaceClass("panel-", "panel-primary");
+                    this.bulb_good.turn_blink();
+                    break;
+
+                case "committed":
+                    panel.replaceClass("panel-", "panel-success");
+                    this.global_timeout.stopTimer();
+                    this.bulb_ugly.turn();
+                    this.bulb_good.turn();
+                    break;
+
+                case "rollback":
+                    panel.replaceClass("panel-", "panel-danger");
+                    this.global_timeout.stopTimer();
+                    this.bulb_ugly.turn();
+                    this.bulb_good.turn(false);
+                    this.bulb_bad.turn();
+                    break;
+
+                default:
+                    panel.replaceClass("panel-", "panel-default");
+                    break;
             }
         }
 
@@ -155,7 +160,7 @@ const Controller = (function () {
                     break;
 
                 default:
-                    console.warn("Unhandled event")
+                    console.warn("Unhandled event", event)
             }
         }
     };

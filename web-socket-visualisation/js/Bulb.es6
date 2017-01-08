@@ -41,7 +41,7 @@ const Bulb = (function () {
         blink() {
             clearTimeout(this.timeout);
             this.body.find('.flash').removeClass(this.class);
-            this.timeout = setTimeout(() => this.body.find('.flash').addClass(this.class), 16);
+            this.timeout = setTimeout(() => this.body.find('.flash').addClass(this.class), 32);
         }
 
         turn(val) {
