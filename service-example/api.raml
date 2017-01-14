@@ -1,5 +1,5 @@
 #%RAML 0.8
-title: Transaction API
+title: Transaction
 version: v1
 baseUri: http://bogdandm.ddns.net/{service}/api/{version}/
 mediaType: application/json
@@ -88,6 +88,8 @@ traits:
   /{id}:
     post:
       is: [transaction]
+      body:
+        schema: !include json_schemas/transaction_commit.schema
       description: |
         Commit. Передается ключ транзакции.
       responses:
@@ -106,10 +108,13 @@ traits:
         Ping. Должен вызываться каждые N мс. В случае задержки вызова на 2*N сервис считает соединение потерянным и
         происходит односторонний откат. Если сервис перестал отвечать на ping, то контроллер региструет разрыв
         соедениния и выполняет глобальный откат.
-      queryParameters:
-        prepare:
-            description: Если данный параметр указан, то сервис должен проверить готовность транзакции к коммиту.
-            type: boolean
+      responses:
+        200:
+
+    put:
+      is: [transaction]
+      description: |
+        Finish. Вызывается контролером после получения всех "Done".
       responses:
         200:
 

@@ -196,7 +196,6 @@
             }
           },
           "required": [
-            "name",
             "url",
             "timeout"
           ]
@@ -370,23 +369,29 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
-    "service_name": {
-      "type": "string"
-    },
     "key": {
-      "type": "string"
-    },
-    "status": {
       "type": "string"
     },
     "response": {
       "type": "object"
+    },
+    "done": {
+      "type": "boolean"
     }
   },
-  "required": [
-    "service_name",
-    "key",
-    "status"
+  "anyOf": [
+    {
+      "required": [
+        "key",
+        "response"
+      ]
+    },
+    {
+      "required": [
+        "key",
+        "done"
+      ]
+    }
   ]
 }
 </code></pre><p><strong>Example</strong>:</p><pre><code>{
