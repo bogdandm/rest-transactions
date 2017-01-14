@@ -3,18 +3,20 @@ from typing import Dict, Any
 
 import requests as request_lib
 from bson import ObjectId
+from gevent import joinall
 from gevent import sleep
 from gevent import wait
 
 from tools import debug_SSE, MultiDict
 from tools import transform_json_types
-from tools.gevent_ import g_async
+from tools.gevent_ import g_async, Wait
 from tools.transactions import ATransaction
 
 _debug_thread = debug_SSE.spawn(("localhost", 9000))
 
 
 class Transaction(ATransaction):
+	done_timeout = 20  # s
 	self_url = "http://localhost:5000/api"
 
 	@classmethod
@@ -29,7 +31,6 @@ class Transaction(ATransaction):
 		... 		{
 		... 			"_id": "unique str",
 		... 			"service": {
-		... 				"name": "str",
 		... 				"url": "uri",
 		... 				"timeout": "ms"  # local timeout
 		... 			},
@@ -65,52 +66,59 @@ class Transaction(ATransaction):
 	@g_async
 	def _spawn(self):
 		self.threads += [ch.run() for ch in self.childes.values()]  # THREAD:N, blocked
-		self.__wait_child_fail(), self.__wait_childes_ready_commit()  # THREAD: 2, blocked
-		wait((self.ready_commit, self.fail), count=1)  # BLOCK # LISTENER
+
+		# Phase 1
+
+		def on_child_fail(e):
+			ch = next(filter(lambda ch: ch.fail.ready(), self.childes.values()), None)
+			debug_SSE.event({"event": "fail_child", "t": datetime.now(), "data": ch.id if ch else None})  # DEBUG fail_child
+			self.fail.set()  # EMIT(fail)
+
+		# THREAD: 1, blocked
+		w_fail = Wait([ch.fail for ch in self.childes.values()], count=1, timeout=self.timeout, then=on_child_fail)
+
+		# THREAD: 1, blocked
+		w_ready_commit = Wait([ch.ready_commit for ch in self.childes.values()], then=lambda e: self.ready_commit.set())
+
+		wait((w_ready_commit.result, w_fail.result), count=1)  # BLOCK
+
+		# Phase 2
+
 		if self.ready_commit.ready():
 			debug_SSE.event({"event": "ready_commit", "t": datetime.now()})  # DEBUG ready_commit
-			self.prepare_commit()
-		elif self.fail.ready():
+			debug_SSE.event({"event": "commit", "t": datetime.now()})  # DEBUG commit
+			joinall([ch.do_commit() for ch in self.childes.values()])  # BLOCK  # THREAD:N
+
+			# THREAD: 1, blocked
+			w_done = Wait(
+				[ch.done for ch in self.childes.values()],
+				count=len(self.childes), timeout=self.done_timeout,
+				then=lambda _: self.done.set()
+			)
+			print("wait done")
+			e = wait((w_done.result, w_fail.result), count=1)  # BLOCK
+			print(e)
+			e = e[0].get()
+			print(e)
+			if not self.fail.ready() and len(e) == len(self.childes):
+				w_fail.kill()
+				self.done.set()  # EMIT(ready_commit)
+				debug_SSE.event({"event": "finish", "t": datetime.now()})  # DEBUG finish
+				joinall([ch.send_finish() for ch in self.childes.values()])
+			else:
+				w_done.kill()
+				self.fail.set()
+
+		w_ready_commit.kill()
+		if self.fail.ready():
 			debug_SSE.event({"event": "fail", "t": datetime.now()})  # DEBUG fail
-			self.rollback()
-
-		pass  # killall(self.threads)  # THREAD:-?
-
-	def prepare_commit(self):
-		debug_SSE.event({"event": "prepare_commit", "t": datetime.now()})  # DEBUG prepare_commit
-		res = wait([ch.prepare_commit() for ch in self.childes.values()])
-		if all([r.value for r in res]):
-			self.commit()
-		else:
-			self.rollback()
-
-	def commit(self):
-		wait([ch.commit() for ch in self.childes.values()])
-		debug_SSE.event({"event": "committed", "t": datetime.now()})  # DEBUG committed
-
-	def rollback(self):
-		wait([ch.rollback() for ch in self.childes.values()])
-		debug_SSE.event({"event": "rollback", "t": datetime.now()})  # DEBUG rollback
-
-	@g_async
-	def __wait_childes_ready_commit(self):  # LISTENER
-		wait([ch.ready_commit for ch in self.childes.values()])  # BLOCK
-		self.ready_commit.set()  # EMIT(ready_commit)
-
-	@g_async
-	def __wait_child_fail(self):  # LISTENER
-		e = wait([ch.fail for ch in self.childes.values()], count=1, timeout=self.timeout)  # BLOCK, timeout
-		ch = None
-		for ch in self.childes.values():
-			if ch.fail.ready():
-				break
-		debug_SSE.event({"event": "fail_child", "t": datetime.now(), "data": ch.id if ch else None})  # DEBUG fail_child
-		self.fail.set()  # EMIT(fail)
+			joinall([ch.do_rollback() for ch in self.childes.values()])  # BLOCK  # THREAD:N
+			debug_SSE.event({"event": "rollback", "t": datetime.now()})  # DEBUG rollback
 
 
 class ChildTransaction(ATransaction):
 	class Service:
-		def __init__(self, name, url, timeout):
+		def __init__(self, url, timeout, name=""):
 			self.name = name
 			self.url = url
 			self.timeout = timeout / 1000
@@ -128,7 +136,7 @@ class ChildTransaction(ATransaction):
 		self.method = method
 		self.data = data
 		self.headers = headers
-		self.service = ChildTransaction.Service(**service) # type: ChildTransaction.Service
+		self.service = ChildTransaction.Service(**service)  # type: ChildTransaction.Service
 
 		self.remote_id = None
 		self.key = None
@@ -143,31 +151,31 @@ class ChildTransaction(ATransaction):
 			}, timeout=self.service.timeout)  # BLOCK, timeout
 		except request_lib.RequestException:
 			self.fail.set()  # EMIT(fail)
-			return
-
-		if resp.status_code != 200:
-			self.fail.set()  # EMIT(fail)
 		else:
-			js = resp.json()
-			transform_json_types(js, direction=1)
-			# TODO: validate
+			if resp.status_code != 200:
+				self.fail.set()  # EMIT(fail)
+			else:
+				js = resp.json()
+				transform_json_types(js, direction=1)
+				# TODO: validate
 
-			debug_SSE.event({
-				"event": "init_child_2", "t": datetime.now(),
-				"data": {"chid": self.id, **js}
-			})  # DEBUG init_child_2
+				debug_SSE.event({
+					"event": "init_child_2", "t": datetime.now(),
+					"data": {"chid": self.id, **js}
+				})  # DEBUG init_child_2
 
-			self.remote_id = js["_id"]
-			self.key = js["transaction-key"]
-			self.parent.childes[self.key] = self
-			self.ping_timeout = js["ping-timeout"] / 1000
+				self.remote_id = js["_id"]
+				self.key = js["transaction-key"]
+				self.parent.childes[self.key] = self
+				self.ping_timeout = js["ping-timeout"] / 1000
 
-			self.parent.threads.append(self.__ping())  # THREAD:1, loop
-			self.parent.threads.append(self.__wait_response())  # THREAD:1
+				self.parent.threads.append(self.do_ping())  # THREAD:1, loop
+				self.parent.threads.append(self.wait_response())  # THREAD:1
+				self.parent.threads.append(self.wait_done())  # THREAD:1
 
 	@g_async
-	def __ping(self):
-		while not (self.committed.ready() or self.fail.ready()):
+	def do_ping(self):
+		while not (self.parent.done.ready() or self.fail.ready()):
 			debug_SSE.event({"event": "ping_child", "t": datetime.now(), "data": self.id})  # DEBUG ping_child
 			try:
 				resp = request_lib.get("{}/transactions/{}".format(self.service.url, self.remote_id), headers={
@@ -175,16 +183,28 @@ class ChildTransaction(ATransaction):
 				}, timeout=self.ping_timeout)  # BLOCK, timeout
 			except request_lib.RequestException:
 				self.fail.set()  # EMIT(fail)
-				return
-			if resp.status_code != 200:
-				self.fail.set()  # EMIT(fail)
-				return
-			t = self.ping_timeout - resp.elapsed.total_seconds()
-			sleep(t)  # BLOCK, sleep
-		# Max timeout ~= ping_timeout
+			else:
+				if resp.status_code == 200:
+					t = self.ping_timeout - resp.elapsed.total_seconds()
+					sleep(t)  # BLOCK, sleep
+				else:
+					self.fail.set()  # EMIT(fail)
 
 	@g_async
-	def __wait_response(self):  # LISTENER
+	def wait_done(self):  # DEBUG
+		wait([self.done])
+		debug_SSE.event({
+			"event": "done_child",
+			"t": datetime.now(),
+			"data": self.id
+		})  # DEBUG done_child
+
+	@g_async
+	def wait_response(self):  # LISTENER
+		debug_SSE.event({
+			"event": "prepare_commit_child", "t": datetime.now(),
+			"data": self.id
+		})  # DEBUG prepare_commit_child
 		try:
 			resp = request_lib.request(self.method, self.service.url + self.url, headers={
 				"X-Transaction": self.key, **self.headers
@@ -204,57 +224,32 @@ class ChildTransaction(ATransaction):
 				"data": {"chid": self.id, **js}
 			})  # DEBUG ready_commit_child
 			self.ready_commit.set()  # EMIT(ready_commit)
-			return
-		self.fail.set()  # EMIT(fail)
-
-	@g_async
-	def prepare_commit(self):
-		result = True
-		try:
-			resp = request_lib.get("{}/transactions/{}?prepare".format(self.service.url, str(self.remote_id)), headers={
-				"X-Transaction": self.key
-			}, timeout=self.ping_timeout)  # BLOCK, timeout
-			sleep()
-		except request_lib.RequestException:
-			self.fail.set()  # EMIT(fail)
-			result = False
 		else:
-			if resp.status_code != 200:
-				self.fail.set()  # EMIT(fail)
-				result = False
-
-		debug_SSE.event({
-			"event": "prepare_commit_child",
-			"t": datetime.now(),
-			"data": {"chid": self.id, "result": result}
-		})  # DEBUG prepare_commit_child
-		return result
+			self.fail.set()  # EMIT(fail)
 
 	@g_async
-	def commit(self):
+	def do_commit(self):
 		try:
+			# BLOCK, timeout
 			resp = request_lib.post("{}/transactions/{}".format(self.service.url, str(self.remote_id)), headers={
 				"X-Transaction": self.key
-			}, timeout=self.ping_timeout)  # BLOCK, timeout
-			sleep()
+			}, json={"done-timeout": self.parent.done_timeout * 1000}, timeout=self.parent.done_timeout)
 		except request_lib.RequestException:
-			print("Commit fail!")
 			self.fail.set()  # EMIT(fail)
 			return False
 		if resp.status_code != 200:
-			print("Commit fail!")
 			self.fail.set()  # EMIT(fail)
 			return False
 		debug_SSE.event({
-			"event": "committed_child",
+			"event": "commit_child",
 			"t": datetime.now(),
 			"data": self.id
-		})  # DEBUG committed_child
-		self.committed.set()
+		})  # DEBUG commit_child
+		self.commit.set()
 		return True
 
 	@g_async
-	def rollback(self):
+	def do_rollback(self):
 		self.fail.set()  # auto rollback by timeout
 		debug_SSE.event({
 			"event": "rollback_child",
@@ -262,3 +257,10 @@ class ChildTransaction(ATransaction):
 			"data": self.id
 		})  # DEBUG rollback_child
 		pass  # TODO: do service rollback
+
+	@g_async
+	def send_finish(self):
+		resp = request_lib.put("{}/transactions/{}".format(self.service.url, str(self.remote_id)), headers={
+			"X-Transaction": self.key
+		}, timeout=self.parent.done_timeout)
+		# TODO: Check response?

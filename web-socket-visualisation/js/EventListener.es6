@@ -19,7 +19,7 @@ const SseEvent = (function () {
 
         view() {
             let text = (text) => $("<td/>").text(text);
-            let time = text(dateFormat(this.timeStamp, "HH:HH:ss.l"));
+            let time = text(dateFormat(this.timeStamp, "HH:MM:ss.l"));
             let source = text(this.parent.name);
             let type = text(this.type);
             let json = $("<td/>").append(this._view.render());

@@ -48,7 +48,7 @@ const TransactionGenerator = (function () {
             return {
                 _id: `Service #${i} GET ${rndWord}`,
                 service: {
-                    name: `Service #${i}`,
+                    //name: `Service #${i}`,
                     url: `http://localhost:501${i}/api`,
                     timeout: randInt(...localTimeout),
                 },

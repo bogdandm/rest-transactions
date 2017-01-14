@@ -33,9 +33,10 @@ const Controller = (function () {
             this.global_timeout.setMax(data.timeout);
             this.global_timeout.startTimer();
             for (let action of data.actions) {
+                let n = Number(action.service.url.match(/localhost:501([0-9])/)[1]);
                 let service = new Service(
-                    action.service.name, action.service.timeout,
-                    `http://localhost:901${Number(action.service.name.split("#")[1])}/debug_sse`
+                    "Service #" + n, action.service.timeout,
+                    `http://localhost:901${n}/debug_sse`
                 );
                 window.globals.services[action["_id"]] = service;
 
@@ -74,11 +75,6 @@ const Controller = (function () {
                     panel.replaceClass("panel-", "panel-warning");
                     break;
 
-                case "ready_commit":
-                    panel.replaceClass("panel-", "panel-primary");
-                    this.bulb_good.turn();
-                    break;
-
                 case "fail":
                     panel.replaceClass("panel-", "panel-danger");
                     this.global_timeout.stopTimer();
@@ -86,12 +82,12 @@ const Controller = (function () {
                     this.bulb_bad.turn();
                     break;
 
-                case "prepare_commit":
+                case "commit":
                     panel.replaceClass("panel-", "panel-primary");
                     this.bulb_good.turn_blink();
                     break;
 
-                case "committed":
+                case "finish":
                     panel.replaceClass("panel-", "panel-success");
                     this.global_timeout.stopTimer();
                     this.bulb_ugly.turn();
@@ -107,7 +103,6 @@ const Controller = (function () {
                     break;
 
                 default:
-                    panel.replaceClass("panel-", "panel-default");
                     break;
             }
         }
@@ -123,9 +118,9 @@ const Controller = (function () {
 
                 case "ready_commit":
                 case "fail":
-                case "prepare_commit":
-                case "committed":
+                case "commit":
                 case "rollback":
+                case "finish":
                     this.setStatus(event.type);
                     break;
 
@@ -139,13 +134,15 @@ const Controller = (function () {
                     break;
 
                 case "ping_child":
+                case "prepare_commit_child":
                     chid = event.data;
                     service = window.globals.services[chid];
                     service.cbulb_ugly.blink();
                     break;
 
                 case "fail_child":
-                case "committed_child":
+                case "commit_child":
+                case "done_child":
                 case "rollback_child":
                     chid = event.data;
                     service = window.globals.services[chid];
@@ -153,7 +150,6 @@ const Controller = (function () {
                     break;
 
                 case "ready_commit_child":
-                case "prepare_commit_child":
                     chid = event.data["chid"];
                     service = window.globals.services[chid];
                     service.setCStatus(event.type.replace("_child", ""));

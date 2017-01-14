@@ -1,4 +1,3 @@
-import json as json_lib
 import time
 from datetime import datetime
 from hashlib import sha256
@@ -9,6 +8,7 @@ from typing import Dict
 import requests
 from bson import ObjectId
 from flask import request
+from gevent import Greenlet
 from gevent import sleep, wait
 from gevent.event import Event, AsyncResult
 from gevent.pywsgi import WSGIServer
@@ -34,9 +34,10 @@ class TransactionDummy(ATransaction):
 		super().__init__(ObjectId())
 		print(callback_url)
 		self.callback_url = callback_url
-		self.local_timeout = local_timeout
-		self.ping_timeout = ping_timeout if ping_timeout is not None else TransactionDummy.ping_timeout
-		self.result_timeout = result_timeout if result_timeout is not None else TransactionDummy.result_timeout
+		self.local_timeout = local_timeout  # type: float
+		self.ping_timeout = ping_timeout if ping_timeout is not None else TransactionDummy.ping_timeout  # type: float
+		self.result_timeout = result_timeout if result_timeout is not None else TransactionDummy.result_timeout  # type: float
+		self.done_timeout = None  # type: float
 
 		self.key = sha256(bytes(
 			str(self.id) + str(int(time.time() * 10 ** 6) ^ randint(0, 2 ** 20)),
@@ -54,22 +55,22 @@ class TransactionDummy(ATransaction):
 
 		self._ping = Event()
 		self.result = AsyncResult()
-		self.ping_timeout_thread_obj = None
-		self.result_thread_obj = None
+		self.ping_timeout_thread_obj = None  # type: Greenlet
+		self.result_thread_obj = None  # type: Greenlet
 
 	@g_async
 	def _spawn(self):
 		self.ping_timeout_thread_obj = self.ping_timeout_thread()  # THREAD:1, loop
 
-		wait((self.ready_commit, self.fail), timeout=self.local_timeout)  # BLOCK, timeout
-		wait((self.committed, self.fail))  # BLOCK
+	# wait((self.ready_commit, self.fail), timeout=self.local_timeout)  # BLOCK, timeout
+	# wait((self.commit, self.fail))  # BLOCK
 
 	@g_async
 	def ping_timeout_thread(self):
-		while not (self.committed.ready() or self.fail.ready()):
+		while not (self.done.ready() or self.fail.ready()):
 			debug_SSE.event({"event": "wait_ping", "t": datetime.now(), "data": None})  # DEBUG wait_ping
-			w = wait((self._ping, self.committed, self.fail),
-					 timeout=self.ping_timeout * 2, count=1)  # BLOCK, timeout
+			w = wait((self._ping, self.done, self.fail),
+					 count=1, timeout=self.ping_timeout * 2)  # BLOCK, timeout
 			if not len(w):
 				debug_SSE.event({"event": "fail", "t": datetime.now(), "data": "ping timeout"})  # DEBUG ping timeout
 				self.fail.set()  # EMIT(fail)
@@ -88,41 +89,46 @@ class TransactionDummy(ATransaction):
 		sleep(self.result_timeout)  # BLOCK, sleep
 		if not (self.ready_commit.ready() or self.fail.ready()):
 			global app
-			self.result.set({
-				"data": resource
-			})  # EMIT(result)
+			self.result.set(resource)  # EMIT(result)
 			self.ready_commit.set()  # EMIT(ready_commit)
 			debug_SSE.event({"event": "ready_commit", "t": datetime.now(), "data": None})  # DEBUG ready_commit
 			data = {
-				"service_name": app.name,
 				"key": self.key,
-				"response": self.result.get(),
-				"status": "READY"
+				"response": {
+					"data": self.result.get()
+				}
 			}
-			print("Result send to {}\nResult:\n{}".format(self.callback_url, json_lib.dumps(data, indent=4)))
 			rp = requests.put(self.callback_url, headers={"Connection": "close"}, json=data, timeout=5)
 		else:
 			raise Exception("error during work")
 
-	def ping(self, prepare=False) -> bool:
-		if not (self.fail.ready() or self.committed.ready()):
+	def ping(self) -> bool:
+		if not (self.fail.ready() or self.done.ready()):
 			self._ping.set()  # EMIT(ping)
-			if prepare:
-				debug_SSE.event({"event": "prepare_commit", "t": datetime.now(), "data": None})  # DEBUG prepare_commit
-				return self.ready_commit.ready()
-			else:
-				return True
+			return True
 		return False
 
-	def commit(self):
+	@g_async
+	def do_commit(self):
 		if not self.fail.ready():
 			if self.ready_commit.ready() and self.result.ready():
-				self.committed.set()  # EMIT(ping)
-				debug_SSE.event({"event": "committed", "t": datetime.now(), "data": None})  # DEBUG commit
+				self.commit.set()  # EMIT(ping)
+				debug_SSE.event({"event": "commit", "t": datetime.now(), "data": None})  # DEBUG commit
 			else:
-				raise Exception("error during commit")
+				raise Exception("Error during commit")
 
-	def rollback(self):
+			sleep(randint(self.ping_timeout - 2, self.ping_timeout + 2))
+
+			data = {
+				"key": self.key,
+				"done": True
+			}
+			rp = requests.put(self.callback_url, headers={"Connection": "close"},
+							  json=data, timeout=self.done_timeout * 1.5)
+			debug_SSE.event({"event": "done", "t": datetime.now(), "data": None})  # DEBUG rollback
+
+	@g_async
+	def do_rollback(self):
 		self.fail.set()  # EMIT(fail)
 		debug_SSE.event({"event": "rollback", "t": datetime.now(), "data": None})  # DEBUG rollback
 
@@ -137,7 +143,7 @@ class Application(EmptyApp):
 		@validate(self.schemas["transaction_post"])
 		@json(id_field="_id")
 		def transaction_post(data):
-			tr = TransactionDummy(data["callback-url"], data["timeout"] / 1000, randint(*PING), randint(*WORK))
+			tr = TransactionDummy(data["callback-url"], data["timeout"] / 1000)
 			tr.run()  # THREAD:root
 			self.transactions[str(tr.id)] = tr
 			self.transactions[tr.key] = tr
@@ -156,18 +162,33 @@ class Application(EmptyApp):
 			key = request.headers["X-Transaction"]
 			if tr is None or tr.key != key:
 				raise NotFound
-			return {"alive": tr.ping("prepare" in request.args)}
+			return {"alive": tr.ping()}
 
 		@self.route("/transactions/<trid>", methods=["POST"])
+		@validate(self.schemas["transaction_commit"])
 		@json()
 		# COMMIT
-		def transaction_id_post(trid):
+		def transaction_id_post(trid, data):
+			done_to = data["done-timeout"]
 			tr = self.transactions.get(trid)
 			key = request.headers["X-Transaction"]
 			if tr is None or tr.key != key:
 				raise NotFound
-			tr.commit()
-			return {"OK": tr.committed.ready()}
+			tr.done_timeout = done_to / 1000
+			tr.do_commit()
+			return ""
+
+		@self.route("/transactions/<trid>", methods=["PUT"])
+		@json()
+		# FINISH
+		def transaction_id_put(trid):
+			tr = self.transactions.get(trid)
+			key = request.headers["X-Transaction"]
+			if tr is None or tr.key != key:
+				raise NotFound
+			tr.done.set()
+			debug_SSE.event({"event": "finish", "t": datetime.now(), "data": None})  # DEBUG finish
+			return ""
 
 		@self.route("/transactions/<trid>", methods=["DELETE"])
 		@json()
@@ -177,7 +198,7 @@ class Application(EmptyApp):
 			key = request.headers["X-Transaction"]
 			if tr is None or tr.key != key:
 				raise NotFound
-			tr.rollback()
+			tr.do_rollback()
 			return {"OK": tr.fail.ready()}
 
 		@self.route("/<any_resource>", methods=["GET", "POST", "PUT", "DELETE"])
@@ -204,9 +225,13 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Transaction API REST Service')
 	parser.add_argument("-n", "--number", default=0, type=int)
 	parser.add_argument("-d", "--debug", default=0, action="store_true")
+	parser.add_argument('-p', "--ping", type=int, nargs=2, metavar=('from', 'to'), default=[1, 5])
+	parser.add_argument('-w', "--work_timeout", type=int, nargs=2, metavar=('from', 'to'), default=[10, 30])
 	args, _ = parser.parse_known_args()
-	n, debug = args.number, args.debug
+	n, debug, ping, work_timeout = args.number, args.debug, args.ping, args.work_timeout
 
+	TransactionDummy.ping_timeout = randint(*ping)
+	TransactionDummy.result_timeout = randint(*work_timeout)
 	_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
 	app = Application("./", "/api", "Service #" + str(n), debug=debug)  # type: Application
 	http_server = WSGIServer(('localhost', 5010 + n), app)

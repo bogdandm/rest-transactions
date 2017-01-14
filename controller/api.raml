@@ -151,13 +151,11 @@ traits:
 
     put:
       is:  [validated]
-      description: Вызывается сервисом для передачи статуса. Проверяется пара service_name & key для защиты от ошибочных ответов
+      description: Вызывается сервисом для передачи статуса.
       body:
         schema: !include json_schemas/service_status_callback.schema
         example: |
           {
-            "service_name": "Service 1",
             "key": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-            "response": {"_": "Service response"},
-            "status": "READY"
+            "response": {"_": "Service response"}
           }

@@ -24,7 +24,7 @@ const Service = (function () {
             this.cbulb_bad = new Bulb(...Bulb.red, 0.5, 10);
             this.cbody.find('._bulbs').append(this.cbulb_bad.body);
 
-            this.c_local_timeout = new ProgressBar(null, timeout_local, (v) => formatTime(v, "s"), false);
+            this.c_local_timeout = new ProgressBar(null, timeout_local, (v, max) => formatTime(v, "s"), false);
             this.cbody.find("._bars").append(this.c_local_timeout.body);
             this.c_local_timeout.startTimer();
 
@@ -32,11 +32,14 @@ const Service = (function () {
         }
 
         init_timeouts(timeout_ping, timeout_work) {
-            this.timeout_ping = new ProgressBar("Ping timeout", timeout_ping, (v) => formatTime(v, "s"));
+            this.timeout_ping = new ProgressBar(
+                "Ping timeout", timeout_ping,
+                (v, max) => formatTime(v, max > 2000 ? "s" : "ms")
+            );
             this.body.find("._bars").append(this.timeout_ping.body);
             this.timeout_ping.startTimer();
 
-            this.timeout_work = new ProgressBar("Work timeout", timeout_work, (v) => formatTime(v, "s"));
+            this.timeout_work = new ProgressBar("Work timeout", timeout_work, (v, max) => formatTime(v, "s"));
             this.body.find("._bars").append(this.timeout_work.body);
         }
 
@@ -71,14 +74,18 @@ const Service = (function () {
                     this.bulb_bad.turn();
                     break;
 
-                case "prepare_commit":
+                case "commit":
                     panel.replaceClass("panel-", "panel-primary");
                     this.bulb_good.turn_blink();
                     break;
 
-                case "committed":
+
+                case "done":
                     panel.replaceClass("panel-", "panel-success");
                     this.timeout_work.stopTimer();
+                    break;
+
+                case "finish":
                     this.timeout_ping.stopTimer();
                     this.bulb_ugly.turn();
                     this.bulb_good.turn();
@@ -104,6 +111,7 @@ const Service = (function () {
             switch (status) {
                 case "ready_commit":
                     panel.replaceClass("panel-", "panel-info");
+                    this.c_local_timeout.stopTimer();
                     this.cbulb_good.turn();
                     break;
 
@@ -114,14 +122,13 @@ const Service = (function () {
                     this.cbulb_bad.turn();
                     break;
 
-                case "prepare_commit":
+                case "commit":
                     panel.replaceClass("panel-", "panel-info");
                     this.cbulb_good.turn_blink();
                     break;
 
-                case "committed":
+                case "done":
                     panel.replaceClass("panel-", "panel-success");
-                    this.c_local_timeout.stopTimer();
                     this.cbulb_ugly.turn();
                     this.cbulb_good.turn();
                     break;
@@ -144,8 +151,9 @@ const Service = (function () {
             switch (event.type) {
                 case "ready_commit":
                 case "fail":
-                case "prepare_commit":
-                case "committed":
+                case "commit":
+                case "done":
+                case "finish":
                 case "rollback":
                     this.setStatus(event.type);
                     break;

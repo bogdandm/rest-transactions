@@ -16,7 +16,7 @@ const ProgressBar = (function () {
             if (formatFunction !== null)
                 this.formatFunction = formatFunction;
             else
-                this.formatFunction = v => v;
+                this.formatFunction = (v, max) => v;
             this.isRunning = false;
             this.setValue(0);
             this.setMax(max);
@@ -31,7 +31,7 @@ const ProgressBar = (function () {
         setValue(val, autoRun = true) {
             this._val = val;
             this.body.find(".progress-bar").attr("aria-valuenow", val).css("width", val / this._max * 100 + "%")
-                .find("._current").text(this.formatFunction(val));
+                .find("._current").text(this.formatFunction(val, this._max));
             if (autoRun) {
                 this.startTimer();
             }

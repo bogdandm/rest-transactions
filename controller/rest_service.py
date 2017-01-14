@@ -1,14 +1,14 @@
 import logging
 from typing import Dict, Any
 
-from flask import request
-from werkzeug.exceptions import NotFound
+from gevent.wsgi import WSGIServer
+from werkzeug.exceptions import NotFound, BadRequest
 
 from tools.flask_ import EmptyApp
 from tools.flask_.decorators import validate, json
 from tools.socket_.tcp_client import TcpClient
 
-from gevent.wsgi import WSGIServer
+
 class ControllerRestService(EmptyApp):
 	VERSION = "alpha"
 
@@ -29,7 +29,6 @@ class ControllerRestService(EmptyApp):
 		@json()
 		def ping():
 			return "Pong"
-
 
 		@self.route("/transactions", methods=["POST"])
 		@validate(self.schemas["transaction"])
@@ -54,7 +53,12 @@ class ControllerRestService(EmptyApp):
 		@validate(self.schemas["service_status_callback"])
 		@json()
 		def transaction_put_response(trid, data: Dict[str, Any]):
-			header, js = self.client.call("set_result", {"id": trid, **data}).values
+			if "response" in data:
+				header, js = self.client.call("set_result", {"id": trid, **data}).values
+			elif "done" in data:
+				header, js = self.client.call("set_done", {"id": trid, **data}).values
+			else:
+				raise BadRequest()
 			if header == "200":
 				return js
 			elif header == "404":

@@ -29,14 +29,15 @@ class ATransaction(metaclass=ABCMeta):
 		self.id = _id
 		self.threads = []  # type: List[Greenlet]
 		self.ready_commit = event.Event()
-		self.committed = event.Event()
+		self.commit = event.Event()
 		self.fail = event.Event()
+		self.done = event.Event()
 		self.response = event.AsyncResult()
 		self.main_thread = None  # type: Greenlet
 
 	@property
 	def _status(self):
-		return self.ready_commit.ready(), self.committed.ready(), self.fail.ready()
+		return self.ready_commit.ready(), self.commit.ready(), self.fail.ready()
 
 	@property
 	def status(self):
@@ -55,15 +56,6 @@ class ATransaction(metaclass=ABCMeta):
 
 	@g_async
 	def _spawn(self):
-		pass
-
-	def prepare_commit(self) -> bool:
-		pass
-
-	def commit(self):
-		pass
-
-	def rollback(self):
 		pass
 
 	def __hash__(self):
