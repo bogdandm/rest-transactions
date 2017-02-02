@@ -125,7 +125,7 @@ class TransactionDummy(ATransaction):
 			}
 			rp = requests.put(self.callback_url, headers={"Connection": "close"},
 							  json=data, timeout=self.done_timeout * 1.5)
-			debug_SSE.event({"event": "done", "t": datetime.now(), "data": None})  # DEBUG rollback
+			debug_SSE.event({"event": "done", "t": datetime.now(), "data": None})  # DEBUG done
 
 	@g_async
 	def do_rollback(self):
@@ -134,9 +134,8 @@ class TransactionDummy(ATransaction):
 
 
 class Application(EmptyApp):
-	def __init__(self, root_path, app_root, name="Service Dummy", debug=True):
+	def __init__(self, root_path, app_root, debug=True):
 		super().__init__(root_path, app_root, extended_errors=debug)
-		self.name = name
 		self.transactions = MultiDict()  # type: Dict[Any, TransactionDummy]
 
 		@self.route("/transactions", methods=["POST"])
@@ -148,7 +147,6 @@ class Application(EmptyApp):
 			self.transactions[str(tr.id)] = tr
 			self.transactions[tr.key] = tr
 			return {
-				"service-name": self.name,
 				"_id": str(tr.id),
 				"transaction-key": tr.key,
 				"ping-timeout": tr.ping_timeout * 1000
@@ -233,6 +231,6 @@ if __name__ == '__main__':
 	TransactionDummy.ping_timeout = randint(*ping)
 	TransactionDummy.result_timeout = randint(*work_timeout)
 	_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
-	app = Application("./", "/api", "Service #" + str(n), debug=debug)  # type: Application
+	app = Application("./", "/api", debug=debug)  # type: Application
 	http_server = WSGIServer(('localhost', 5010 + n), app)
 	http_server.serve_forever()

@@ -70,6 +70,7 @@ class Transaction(ATransaction):
 		# Phase 1
 
 		def on_child_fail(e):
+			print(e)
 			ch = next(filter(lambda ch: ch.fail.ready(), self.childes.values()), None)
 			debug_SSE.event({"event": "fail_child", "t": datetime.now(), "data": ch.id if ch else None})  # DEBUG fail_child
 			self.fail.set()  # EMIT(fail)
@@ -92,8 +93,8 @@ class Transaction(ATransaction):
 			# THREAD: 1, blocked
 			w_done = Wait(
 				[ch.done for ch in self.childes.values()],
-				count=len(self.childes), timeout=self.done_timeout,
-				then=lambda _: self.done.set()
+				count=len(self.childes), timeout=self.done_timeout
+				# ,then=lambda _: self.done.set()
 			)
 			print("wait done")
 			e = wait((w_done.result, w_fail.result), count=1)  # BLOCK
@@ -118,13 +119,12 @@ class Transaction(ATransaction):
 
 class ChildTransaction(ATransaction):
 	class Service:
-		def __init__(self, url, timeout, name=""):
-			self.name = name
+		def __init__(self, url, timeout):
 			self.url = url
 			self.timeout = timeout / 1000
 
 		def __repr__(self):
-			return "{} <{}>".format(self.name, self.url)
+			return "<{}>".format(self.url)
 
 	def __init__(self, parent: 'Transaction', _id: str, url: str, method: str, data: dict, headers: dict, service: dict,
 				 **kwargs):

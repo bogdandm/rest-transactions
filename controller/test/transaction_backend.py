@@ -6,7 +6,6 @@ transaction_json = {
 		{
 			"_id": "id1",
 			"service": {
-				"name": "Service Dummy",
 				"url": "http://localhost:5000/api",
 				"timeout": 10000
 			},
