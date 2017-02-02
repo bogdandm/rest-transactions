@@ -12,6 +12,7 @@ from tools.socket_ import receive, Tcp500, Tcp404, Request, Response
 
 HandlerType = Callable[[dict], Tuple[Union[str, int], Any]]
 
+# init logger
 try:
 	with open("tcp_logging.json") as config:
 		logging.config.dictConfig(json.load(config))
@@ -51,7 +52,7 @@ class TcpServer:
 		if f.__name__ not in self.methods_map:
 			self.methods_map[f.__name__] = f
 		else:
-			raise NameError
+			raise NameError(f.__name__)
 		return f
 
 	@staticmethod
@@ -75,7 +76,7 @@ class TcpServer:
 				method, json = Request.decode(raw).values
 			except Tcp500 as e:
 				try:
-					method, *_ = str(raw[:-1], encoding="utf-8").split("\n", 1)
+					method, _ = str(raw[:-1], encoding="utf-8").split("\n", 1)
 				except Exception:
 					method = str(None)
 				TcpServer.log(method, "500", str(e.args), "WARNING")
@@ -84,7 +85,7 @@ class TcpServer:
 
 			if method not in self.methods_map:
 				e = Tcp404("method not found")
-				TcpServer.log(method, "500", "Method not found", "WARNING")
+				TcpServer.log(method, "404", "Method not found", "WARNING")
 				socket_obj.sendall(Response(e.status, e).encode())
 				return
 

@@ -49,14 +49,14 @@ class ATcpPacket(metaclass=ABCMeta):
 	@classmethod
 	def decode(cls, data: bytes) -> 'ATcpPacket':
 		"""
-		Fabric class method
+		Factory class method
 
 		:param data:
 		:return:
 		"""
 		try:
 			header, js = str(data[:-1], encoding="utf-8").split("\n", 1)
-			if match("^\W*$", js):
+			if match(r"^\W*$", js):
 				js = None
 			else:
 				js = json.loads(transform_json_types(js, direction=1))

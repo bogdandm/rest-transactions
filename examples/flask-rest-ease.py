@@ -2,6 +2,7 @@ from random import randint
 
 from bson import ObjectId
 
+from tools.exceptions import UnknownException
 from tools.flask_ import EmptyApp
 from tools.flask_.decorators import json, validate, nocache
 
@@ -58,6 +59,11 @@ def random_post():
 @json()
 def test500():
 	return 1/0
+
+@app.route("/error")
+@json()
+def test_error():
+	raise UnknownException()
 
 
 app.run()

@@ -8,8 +8,8 @@ from jsonschema import ValidationError
 from jsonschema import validate as validjson
 
 import tools.exceptions
+import tools.flask_
 from tools import dfilter
-from tools.flask_ import request_data, jsonify
 
 
 def nocache(f: Callable[[], Any]):
@@ -46,7 +46,7 @@ def validate(schema: dict = None):
 
 	def decorator(f: Callable[[], Any]):
 		def wrapper(*args, **kwargs):
-			data = request_data(request)
+			data = tools.flask_.request_data(request)
 			if schema:
 				try:
 					validjson(data, schema)
@@ -89,14 +89,14 @@ def json(id_field=None, hide_id=False, add_uri=True):
 				return res
 			else:
 				return make_response(res)
-			if "uri" not in data:
+			if add_uri and "uri" not in data:
 				uri = request.base_url
 				if id_field is not None:
 					uri += "/" + data.get(id_field)
 					if hide_id:
 						data = dfilter(data, id_field, reverse=True)
 				data["uri"] = uri
-			return jsonify(status, data, True)
+			return tools.flask_.jsonify(status, data, True)
 
 		wrapper.__name__ = f.__name__
 		return wrapper

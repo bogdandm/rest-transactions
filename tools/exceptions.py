@@ -58,7 +58,7 @@ class BadTokenException(AException):
 class PermissionsRequiredException(AException):
 	code = 401
 	n = 23
-	desc = "bad token"
+	desc = "token required"
 
 
 class NameUniqueException(AException):
@@ -81,6 +81,4 @@ catalog = dict(inspect.getmembers(
 if __name__ == '__main__':
 	import json
 
-	print(json.dumps({
-						 k: repr(v) for k, v in catalog.items()
-						 }, indent=4))
+	print(json.dumps({k: repr(v) for k, v in catalog.items()}, indent=4))

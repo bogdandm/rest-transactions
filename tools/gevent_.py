@@ -25,6 +25,18 @@ def g_async(f: Callable) -> Callable[[], gevent.Greenlet]:
 
 
 class Wait:
+	"""
+	Object which allow to connect wait() and AsyncResult().
+	After wait conditions was completed .result will contain wait() return value
+
+	>>> some_event_1 = gevent.event.Event()
+	... some_event_2 = gevent.event.Event()
+	... w1 = Wait((some_event_1,), timeout=10, then=lambda e: print(e))
+	... w2 = Wait((some_event_2,), timeout=5, then=lambda e: print(e))
+	... # spawn another threads
+	...	gevent.wait((w1.result, w2.result), count=1)
+	... w1.kill(), w2.kill()
+	"""
 	def __init__(self, *args, then=None, **kwargs):
 		self._args = args
 		self._kwargs = kwargs

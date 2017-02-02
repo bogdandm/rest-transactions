@@ -13,6 +13,7 @@ from mysql.connector import IntegrityError
 KT = typing.TypeVar('KT')
 VT = typing.TypeVar('VT')
 
+
 def timeit(f):
 	"""
 	Simple timer decorator
@@ -38,16 +39,12 @@ def not_none(*args, default=None):
 	>>> not_none({}, [], "", 0, default="All is None")
 	'All is None'
 	"""
-	for arg in args:
-		if arg:
-			return arg
-	else:
-		return default
+	return next(filter(None, args), default)
 
 
 def dfilter(d: dict, *keys: Iterable, reverse=False) -> dict:
 	"""
-	Filter dictionary (remove all items that not in keys). Create new dict
+	Filter dictionary (remove all items that not in keys). Create new dict.
 
 	>>> dfilter({"a": 1, "b": 2, "c": 3}, "a")
 	{'a': 1}
@@ -116,7 +113,7 @@ def group(d: dict, *groups: List[str], delimiter="_"):
 
 def get_i(iterable: Iterable, i: int):
 	"""
-	Yield each i-th item from iterable
+	Yield each i-th item from iterables
 
 	>>> list(get_i([(x, 2*x) for x in range(10)], 1))
 	[0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
@@ -138,8 +135,8 @@ def get_from_first(key, *getters) -> Any:
 	:return:
 	"""
 	for item in getters:
-		if item and isinstance(item, Iterable) and (isinstance(item, dict) and key in item
-													or isinstance(key, numbers.Number) and 0 <= key < len(item)):
+		if item and (isinstance(item, dict) and key in item
+					 or isinstance(key, numbers.Number) and hasattr(item, "__len__") and 0 <= key < len(item)):
 			return item[key]
 	return None
 
@@ -189,17 +186,17 @@ _load_types()
 T = typing.TypeVar('T')
 
 
-def register_type(type_, serialisator_deserialisator: Tuple[Callable[[T], str], Callable[[str], T]]):
+def register_type(type_, serializer_deserializer: Tuple[Callable[[T], str], Callable[[str], T]]):
 	"""
 	Register new type to transform.
 
 	:param type_: type
-	:param l: Tuple(serialisator, deserialisator)
+	:param serializer_deserializer: Tuple(serialisator, deserialisator)
 	:return:
 	"""
 	global _transform
 	if type_ not in _transform:
-		_transform[type_] = serialisator_deserialisator
+		_transform[type_] = serializer_deserializer
 		_load_types()
 
 
@@ -222,7 +219,7 @@ def transform_json_types(data: Union[dict, list], direction=0):
 	global _transform, _transform_types
 	for k, v in data.items() if isinstance(data, dict) else enumerate(data):
 		t = type(v)
-		if t is list or t is dict and (len(v) != 1 or not next(iter(v.keys()), "").startswith("@")):
+		if t is list or t is dict and not (len(v) == 1 and next(iter(v.keys()), "").startswith("@")):
 			transform_json_types(data[k], direction=direction)
 			continue
 
@@ -231,14 +228,13 @@ def transform_json_types(data: Union[dict, list], direction=0):
 				data[k] = {"@" + t.__name__: _transform[t][direction](v)}
 		else:
 			if t is dict:
-				t = next(v.keys().__iter__())
+				t = next(iter(v.keys()), None)
 				if t in _transform_types:
 					data[k] = _transform[_transform_types[t]][direction](v[t])
 	return data
 
 
-class _Null:
-	pass
+null = object()
 
 
 class MultiDict(typing.MutableMapping[KT, VT]):
@@ -252,18 +248,18 @@ class MultiDict(typing.MutableMapping[KT, VT]):
 			for k, v in init_dict.items():
 				self[k] = v
 
-	def _full_val(self, *args, value: VT = _Null(), key: KT = _Null(), _id: ObjectId = _Null()) \
+	def _full_val(self, *args, value: VT = null, key: KT = null, _id: ObjectId = null) \
 			-> Tuple[ObjectId, Set[KT], VT]:
-		if type(value) is not _Null:
+		if value is not null:
 			_id = self._val_id[value]
 			keys = self._id_keys[_id]
 			return _id, keys, value
-		if type(key) is not _Null:
+		if key is not null:
 			value = self._key_val[key]
 			_id = self._val_id[value]
 			keys = self._id_keys[_id]
 			return _id, keys, value
-		if type(_id) is not _Null:
+		if _id is not null:
 			keys = self._id_keys[_id]
 			value = self._key_val[next(iter(keys))]
 			return _id, keys, value

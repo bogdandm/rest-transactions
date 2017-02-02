@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Union, Dict, List
 
 import werkzeug.exceptions
-from flask import Flask, Response, Request, make_response, request
+from flask import Flask, Response, Request, make_response
 from werkzeug.wsgi import DispatcherMiddleware
 
 from tools import transform_json_types
 from tools.exceptions import catalog, AException
+from tools.flask_.decorators import json
 
 
 def register_errors(
@@ -17,7 +18,7 @@ def register_errors(
 		debug: bool = False
 ):
 	"""
-	Create and register error handlers for HTTP errors and custom Exceptions. The data is returned in JSON/
+	Create and register error handlers for HTTP errors and custom Exceptions. The data will returned in JSON.
 
 	:param app: Flask app
 	:param custom_errors: List of custom exceptions
@@ -26,6 +27,7 @@ def register_errors(
 	"""
 
 	@app.errorhandler(Exception)
+	@json(add_uri=False)
 	def e_handler(e: Exception):
 		data = {
 			"code": 500,
@@ -37,9 +39,10 @@ def register_errors(
 		if debug:
 			traceback.print_exc()
 
-		return jsonify(data["code"], data)
+		return data["code"], data
 
 	@app.errorhandler(werkzeug.exceptions.HTTPException)
+	@json(add_uri=False)
 	def http_e_handler(e: werkzeug.exceptions.HTTPException):
 		data = {
 			"code": e.code,
@@ -48,8 +51,7 @@ def register_errors(
 			**({"data": e.response} if debug else {})
 		}
 
-
-		return jsonify(data["code"], data)
+		return data["code"], data
 
 	for e in werkzeug.exceptions.default_exceptions.values():
 		app.register_error_handler(e, http_e_handler)
@@ -68,7 +70,7 @@ def register_errors(
 
 def request_data(request_: Request):
 	"""
-	Return data from any type request
+	Get data from any type of request
 
 	:param request_:
 	:return:
@@ -116,7 +118,7 @@ class EmptyApp(Flask):
 	Rest service app template. Auto register errors, auto "Access-Control-Allow-Origin" header.
 
 	You can put JSON-Schemas to ./json_schemas/*.schema and
-	they will loaded to self.schemas dict (access by file name without suffix).
+	they will be loaded to self.schemas dict (access by file name without suffix).
 	"""
 
 	def __init__(self, root_path, app_root, debug=False, extended_errors=True):
@@ -139,12 +141,12 @@ class EmptyApp(Flask):
 		self.wsgi_app = DispatcherMiddleware(simple, {app_root: self.wsgi_app})
 
 		self.schemas = {}  # type: Dict[str, Dict]
-		path = Path('json_schemas')
+		path = Path(root_path) / 'json_schemas'
 		if path.exists():
 			for p in path.iterdir():
 				if p.is_file():
 					with open(str(p)) as f:
-						self.schemas[p.stem] = json_lib.loads(f.read())
+						self.schemas[p.stem] = json_lib.load(f)
 
 		register_errors(self, catalog.values(), debug=extended_errors)
 
@@ -157,12 +159,11 @@ class EmptyApp(Flask):
 	def _options(*args):
 		response = make_response()
 		response.headers['Access-Control-Allow-Origin'] = '*'
-		response.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
+		response.headers['Access-Control-Allow-Methods'] = 'POST, GET, PUT, DELETE, OPTIONS'
 		response.headers['Access-Control-Max-Age'] = 1000
-		# note that '*' is not valid for Access-Control-Allow-Headers
 		response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept'
 		return response
 
 	def register_crossdomain(self, *rules):
 		for rule in rules:
-			self.add_url_rule(rule, endpoint=rule + "options", view_func=self._options, methods=["OPTIONS"])
+			self.add_url_rule(rule, endpoint=rule + "_options", view_func=self._options, methods=["OPTIONS"])
