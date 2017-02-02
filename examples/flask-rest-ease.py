@@ -3,7 +3,7 @@ from random import randint
 from bson import ObjectId
 
 from tools.flask_ import EmptyApp
-from tools.flask_.decorators import json, validate
+from tools.flask_.decorators import json, validate, nocache
 
 app = EmptyApp("./", "/api", False, True)
 
@@ -48,7 +48,8 @@ def index_post(data):
 
 
 @app.route("/random", methods=["POST"])
-@json(id_field="_id")
+@nocache
+@json(id_field="_id", hide_id=True)
 def random_post():
 	return {"result": randint(0, 2 ** 100), "_id": str(ObjectId())}
 

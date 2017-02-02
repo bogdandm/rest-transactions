@@ -12,16 +12,33 @@ from tools import dfilter
 from tools.flask_ import request_data, jsonify
 
 
+def nocache(f: Callable[[], Any]):
+	"""Decorator (after). Add headers to disable cache."""
+
+	def wrapper(*args, **kwargs):
+		response = f(*args, **kwargs)  # type: Response
+		if not isinstance(response, Response):
+			response = make_response(response)
+
+		response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+		response.headers["Pragma"] = "no-cache"
+		response.headers["Expires"] = "0"
+		return response
+
+	wrapper.__name__ = f.__name__
+	return wrapper
+
+
 def validate(schema: dict = None):
 	"""
-	Decorator factory
-	Validate data (including GET data) by JSON-Schema. If data is valid pass it to route function.
+	Decorator factory (before)
+	Validate data (including GET data) by JSON-Schema. If data is valid then pass it to route function as dict.
 
-	schema = {...}
-	@app.route("/", methods=["POST"])
-	@validate(schema)
-	def test(data):
-		return "Hello " + data["name"]
+	>>> schema = {...}
+	... @app.route("/", methods=["POST"])
+	... @validate(schema)
+	... def test(data):
+	... 	return "Hello " + data["name"]
 
 	:param schema: JSON-Schema
 	:return:
@@ -43,17 +60,17 @@ def validate(schema: dict = None):
 	return decorator
 
 
-def json(id_field=None, hide_id=False):
+def json(id_field=None, hide_id=False, add_uri=True):
 	"""
-	Decorator factory
-	Convert return JSON value to str.
+	Decorator factory (after)
+	Convert returned JSON value to str.
 	Return formats:
 	* status, json - convert JSON to str
 	* json - set status to 200
 	* Response - don't do anything, just return raw Response
 	* <make_response() args> - don't do anything, just call make_response
 
-	Add "uri" value to json data. If id_field is given uri == <base_url>/<id>.
+	Add "uri" value to json data if add_uri is True. If id_field is given uri == <base_url>/<id>.
 	If hide_id is True id_field will removed from json data.
 
 	:param id_field:
@@ -64,7 +81,7 @@ def json(id_field=None, hide_id=False):
 	def decorator(f: Callable[[], Any]):
 		def wrapper(*args, **kwargs):
 			res = f(*args, **kwargs)
-			if type(res) is tuple:
+			if type(res) is tuple and len(res) == 2 and type(res[1]) is dict:
 				status, data = res
 			elif type(res) is dict:
 				status, data = 200, res
