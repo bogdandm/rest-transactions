@@ -24,15 +24,18 @@ def receive(socket_obj: socket.SocketType, block=1024) -> bytes:
 
 
 class ATcpException(Exception, metaclass=ABCMeta):
-	pass
+	status = None
+	text = ""
 
 
 class Tcp500(ATcpException):
 	status = 500
+	text = "Fail"
 
 
 class Tcp404(ATcpException):
 	status = 404
+	text = "Not Found"
 
 
 class ATcpPacket(metaclass=ABCMeta):

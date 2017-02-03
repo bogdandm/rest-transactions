@@ -8,7 +8,7 @@ from gevent.event import Event
 from gevent.queue import Queue
 
 from tools.gevent_ import g_async
-from tools.socket_ import receive, Tcp500, Tcp404, Request, Response
+from tools.socket_ import receive, Tcp500, Tcp404, Request, Response, ATcpException
 
 HandlerType = Callable[[dict], Tuple[Union[str, int], Any]]
 
@@ -42,6 +42,7 @@ class TcpServer:
 
 	def stop(self):
 		self.__stop.set()
+		self.socket.close()
 
 	def method(self, f: HandlerType):
 		"""
@@ -92,6 +93,9 @@ class TcpServer:
 			try:
 				resp = self.methods_map[method](json)
 				TcpServer.log(method, "200", "", "INFO")
+			except ATcpException as e:
+				TcpServer.log(method, str(e.status), str(e.args), "WARNING")
+				resp = Response(e.status, e.text)
 			except Exception as e:
 				TcpServer.log(method, "500", str(e.args), "WARNING")
 				resp = Response(500, "Fail")

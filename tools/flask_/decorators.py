@@ -92,7 +92,7 @@ def json(id_field=None, hide_id=False, add_uri=True):
 			if add_uri and "uri" not in data:
 				uri = request.base_url
 				if id_field is not None:
-					uri += "/" + data.get(id_field)
+					uri += "/" + data.get(id_field, "")
 					if hide_id:
 						data = dfilter(data, id_field, reverse=True)
 				data["uri"] = uri

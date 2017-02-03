@@ -132,7 +132,7 @@ class EmptyApp(Flask):
 		super().__init__(__name__)
 		self.debug = debug
 		self.root_path = root_path
-		self.config["APPLICATION_ROOT"] = app_root
+		# self.config["APPLICATION_ROOT"] = app_root
 
 		def simple(env, resp):
 			resp(b'404 Page not found', [(b'Content-Type', b'text/plain')])
