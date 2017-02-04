@@ -37,7 +37,6 @@ class TransactionDummy(ATransaction):
 		self.local_timeout = local_timeout  # type: float
 		self.ping_timeout = ping_timeout if ping_timeout is not None else TransactionDummy.ping_timeout  # type: float
 		self.result_timeout = result_timeout if result_timeout is not None else TransactionDummy.result_timeout  # type: float
-		self.done_timeout = None  # type: float
 
 		self.key = sha256(bytes(
 			str(self.id) + str(int(time.time() * 10 ** 6) ^ randint(0, 2 ** 20)),
@@ -123,8 +122,7 @@ class TransactionDummy(ATransaction):
 				"key": self.key,
 				"done": True
 			}
-			rp = requests.put(self.callback_url, headers={"Connection": "close"},
-							  json=data, timeout=self.done_timeout * 1.5)
+			rp = requests.put(self.callback_url, headers={"Connection": "close"}, json=data)
 			debug_SSE.event({"event": "done", "t": datetime.now(), "data": None})  # DEBUG done
 
 	@g_async
@@ -163,16 +161,13 @@ class Application(EmptyApp):
 			return {"alive": tr.ping()}
 
 		@self.route("/transactions/<trid>", methods=["POST"])
-		@validate(self.schemas["transaction_commit"])
 		@json()
 		# COMMIT
-		def transaction_id_post(trid, data):
-			done_to = data["done-timeout"]
+		def transaction_id_post(trid):
 			tr = self.transactions.get(trid)
 			key = request.headers["X-Transaction"]
 			if tr is None or tr.key != key:
 				raise NotFound
-			tr.done_timeout = done_to / 1000
 			tr.do_commit()
 			return ""
 

@@ -1,5 +1,5 @@
 import sys
-from typing import Callable
+from typing import Callable, Dict, List
 
 import gevent
 import gevent.event
@@ -37,12 +37,20 @@ class Wait:
 	...	gevent.wait((w1.result, w2.result), count=1)
 	... w1.kill(), w2.kill()
 	"""
-	def __init__(self, *args, then=None, **kwargs):
+	connections = {}  # type: Dict[object, List[Wait]]
+
+	def __init__(self, *args, then=None, connect_to=None, **kwargs):
 		self._args = args
 		self._kwargs = kwargs
 		self.result = gevent.event.AsyncResult()
 		self._thread = self._wait()  # type: gevent.Greenlet
 		self._then = then
+
+		if connect_to:
+			if connect_to in Wait.connections:
+				Wait.connections[connect_to].append(self)
+			else:
+				Wait.connections[connect_to] = [self]
 
 	@g_async
 	def _wait(self):
