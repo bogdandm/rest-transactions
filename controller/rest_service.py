@@ -79,6 +79,9 @@ class ControllerRestService(EmptyApp):
 			# 	pass
 
 
-if __name__ == '__main__':
+def main():
 	http_server = WSGIServer(('', 5000), ControllerRestService("./"))
 	http_server.serve_forever()
+
+if __name__ == '__main__':
+	main()

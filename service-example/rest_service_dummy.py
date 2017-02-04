@@ -212,20 +212,28 @@ class Application(EmptyApp):
 			}
 
 
-if __name__ == '__main__':
+def main(no_sse=False, args=None):
 	import argparse
+	global _debug_thread
 
 	parser = argparse.ArgumentParser(description='Transaction API REST Service')
 	parser.add_argument("-n", "--number", default=0, type=int)
 	parser.add_argument("-d", "--debug", default=0, action="store_true")
 	parser.add_argument('-p', "--ping", type=int, nargs=2, metavar=('from', 'to'), default=[1, 5])
 	parser.add_argument('-w', "--work_timeout", type=int, nargs=2, metavar=('from', 'to'), default=[10, 30])
-	args, _ = parser.parse_known_args()
+	if args:
+		args, _ = parser.parse_known_args(args)
+	else:
+		args, _ = parser.parse_known_args()
 	n, debug, ping, work_timeout = args.number, args.debug, args.ping, args.work_timeout
 
+	# TODO: Give interval to randomize tests
 	TransactionDummy.ping_timeout = randint(*ping)
 	TransactionDummy.result_timeout = randint(*work_timeout)
-	_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
-	app = Application("./", "/api", debug=debug)  # type: Application
-	http_server = WSGIServer(('localhost', 5010 + n), app)
+	if not no_sse:
+		_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
+	http_server = WSGIServer(('localhost', 5010 + n), Application("./", "/api", debug=debug))
 	http_server.serve_forever()
+
+if __name__ == '__main__':
+	main()

@@ -1,9 +1,7 @@
-from datetime import datetime
 from typing import Any
 from typing import Dict
 
 from bson import ObjectId
-from gevent import wait
 
 from controller.transaction_daemon.transaction_backend import Transaction
 from tools import MultiDict
@@ -47,7 +45,15 @@ class Daemon(TcpServer):
 			return 200, {"ID": str(tr.id)}
 
 
-if __name__ == '__main__':
+def main(no_sse=False, *args):
+	global _debug_thread
+	if not no_sse:
+		_debug_thread = debug_SSE.spawn(("localhost", 9000))
+
 	Transaction.set_self_url("http://localhost:5000/api/alpha/transactions")  # TODO: Sent from REST Service
 	daemon = Daemon(("127.0.0.1", 5600))
 	daemon.run()
+
+
+if __name__ == '__main__':
+	main()

@@ -13,8 +13,6 @@ from tools import transform_json_types
 from tools.gevent_ import g_async, Wait
 from tools.transactions import ATransaction
 
-_debug_thread = debug_SSE.spawn(("localhost", 9000))
-
 
 class Transaction(ATransaction):
 	done_timeout = 30  # s
