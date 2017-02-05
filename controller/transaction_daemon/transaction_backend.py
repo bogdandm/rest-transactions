@@ -78,6 +78,7 @@ class Transaction(ATransaction):
 
 		if self.ready_commit.ready():
 			debug_SSE.event({"event": "ready_commit", "t": datetime.now()})  # DEBUG ready_commit
+			self.commit.set()
 			debug_SSE.event({"event": "commit", "t": datetime.now()})  # DEBUG commit
 			joinall([ch.do_commit() for ch in self.childes.values()])  # BLOCK  # THREAD:N
 

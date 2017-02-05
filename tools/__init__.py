@@ -311,6 +311,9 @@ class MultiDict(typing.MutableMapping[KT, VT]):
 			keys = self._id_keys[_id]
 			yield keys
 
+	def __contains__(self, item):
+		return item in self._key_val
+
 	def keys(self):
 		return collections.KeysView(self)
 

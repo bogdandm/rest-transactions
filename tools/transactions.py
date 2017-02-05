@@ -13,8 +13,8 @@ class EStatus(Enum):
 	IN_PROGRESS = 1
 	READY_COMMIT = 2
 	FAIL = 3
-	# TIMEOUT = 4
-	COMMITTED = 5
+	COMMIT = 4
+	DONE = 5
 
 
 tools.register_type(EStatus, (
@@ -36,17 +36,14 @@ class ATransaction(metaclass=ABCMeta):
 		self.main_thread = None  # type: Greenlet
 
 	@property
-	def _status(self):
-		return self.ready_commit.ready(), self.commit.ready(), self.fail.ready()
-
-	@property
 	def status(self):
-		cr, c, f = self._status
-		if f:
+		if self.fail.ready():
 			return EStatus.FAIL
-		if c:
-			return EStatus.COMMITTED
-		if cr:
+		if self.done.ready():
+			return EStatus.DONE
+		if self.commit.ready():
+			return EStatus.COMMIT
+		if self.ready_commit.ready():
 			return EStatus.READY_COMMIT
 		return EStatus.IN_PROGRESS
 

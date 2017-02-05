@@ -135,8 +135,8 @@ class EmptyApp(Flask):
 		# self.config["APPLICATION_ROOT"] = app_root
 
 		def simple(env, resp):
-			resp(b'404 Page not found', [(b'Content-Type', b'text/plain')])
-			return [b'No server for this url']
+			resp('404 Page not found', [('Content-Type', 'text/plain')])
+			return ['No server for this url']
 
 		self.wsgi_app = DispatcherMiddleware(simple, {app_root: self.wsgi_app})
 

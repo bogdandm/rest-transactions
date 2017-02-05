@@ -21,10 +21,6 @@ class ControllerRestService(EmptyApp):
 			exit()
 		self.register_crossdomain("/transactions", "/transactions/<trid>")
 
-		# @self.before_request
-		# def test():
-		# 	print(request)
-
 		@self.route("/ping", methods=["GET"])
 		@json()
 		def ping():
@@ -44,7 +40,9 @@ class ControllerRestService(EmptyApp):
 		@json()
 		def transaction_get(trid):
 			header, js = self.client.call("get_transaction", {"id": trid}).values
-			if header != "200":
+			if header == "404":
+				raise NotFound()
+			elif header != "200":
 				raise Exception(header, js)
 			else:
 				return js

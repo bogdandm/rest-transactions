@@ -23,9 +23,14 @@ class Daemon(TcpServer):
 
 		@self.method
 		def get_transaction(data):
-			trid = data["id"]  # type: str
-			tr = self.transactions[ObjectId(trid)]
-			return 200, {trid: tr.status}
+			trid = ObjectId(data["id"])  # type: str
+			if trid not in self.transactions:
+				return 404, {str(trid): None}
+			tr = self.transactions[trid]
+			status = {}
+			for k, v in tr.status.items():
+				status[k] = v.name
+			return 200, {str(trid): status}
 
 		@self.method
 		def set_result(data):
