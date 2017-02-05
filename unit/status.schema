@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "uri": {
+      "type": "string"
+    }
+  },
+  "patternProperties": {
+    "^[0-9a-z]{23,25}$": {
+      "type": "object",
+      "properties": {
+        "global": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^Service": {
+          "type": "string"
+        }
+      },
+      "required": ["global"]
+    }
+  }
+}

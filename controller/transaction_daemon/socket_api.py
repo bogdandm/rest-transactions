@@ -50,7 +50,7 @@ class Daemon(TcpServer):
 			return 200, {"ID": str(tr.id)}
 
 
-def main(no_sse=False, *args):
+def main(no_sse=False):
 	global _debug_thread
 	if not no_sse:
 		_debug_thread = debug_SSE.spawn(("localhost", 9000))

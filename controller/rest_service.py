@@ -28,7 +28,7 @@ class ControllerRestService(EmptyApp):
 
 		@self.route("/transactions", methods=["POST"])
 		@validate(self.schemas["transaction"])
-		@json(id_field="ID", hide_id=True)
+		@json(id_field="ID", hide_id=False)
 		def transaction_create(data: Dict[str, Any]):
 			header, js = self.client.call("open_transaction", data).values
 			if header != "200" and header != 200:
@@ -77,8 +77,8 @@ class ControllerRestService(EmptyApp):
 			# 	pass
 
 
-def main():
-	http_server = WSGIServer(('', 5000), ControllerRestService("./"))
+def main(path="."):
+	http_server = WSGIServer(('', 5000), ControllerRestService(path))
 	http_server.serve_forever()
 
 if __name__ == '__main__':

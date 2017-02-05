@@ -212,7 +212,7 @@ class Application(EmptyApp):
 			}
 
 
-def main(no_sse=False, args=None):
+def main(no_sse=False, path=".", args=None):
 	import argparse
 	global _debug_thread
 
@@ -232,7 +232,7 @@ def main(no_sse=False, args=None):
 	TransactionDummy.result_timeout = randint(*work_timeout)
 	if not no_sse:
 		_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
-	http_server = WSGIServer(('localhost', 5010 + n), Application("./", "/api", debug=debug))
+	http_server = WSGIServer(('localhost', 5010 + n), Application(path, "/api", debug=debug))
 	http_server.serve_forever()
 
 if __name__ == '__main__':
