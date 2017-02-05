@@ -165,6 +165,25 @@
         #hide-ping[aria-pressed=true] + #log-wrapper tr[metatype*=ping] {
             display: none;
         }
+
+        #controller_status_wrapper {
+            z-index: 1;
+            position: absolute;
+            left: 5px;
+            top: 55px;
+        }
+
+        #controller_status {
+            overflow: hidden;
+            max-width: 50px;
+            max-height: 50px;
+            transition: max-width  0.5s ease, max-height 0.5s ease;
+        }
+
+        #controller_status:hover {
+            max-width: 1000px;
+            max-height: 1000px;
+        }
     </style>
 </head>
 <body>
@@ -234,7 +253,6 @@
                     <pre id="tr_generator_json" class="clearfix"></pre>
                     <div class="input-group">
                         <span class="input-group-btn">
-                            <button id="test_btn" class="btn btn-default" type="button">Test</button>
                             <button id="go_btn" class="btn btn-default" type="button">Go!</button>
                         </span>
                         <input type="text" class="form-control" placeholder="Controller URL"
@@ -363,24 +381,11 @@
 <script src="js/TransactionGenerator.js"></script>
 
 <script>
-    function test() {
-        let data = globals.tr_generator.json;
-        $('[href="#main"]').tab("show");
-        globals.controller.sse_listener.onmsg({
-            data: JSON.stringify({
-                event: "init",
-                t: {
-                    ["@datetime"]: (new Date()).valueOf() / 1000
-                },
-                data
-            })
-        });
-    }
-
     $(() => {
         Controller.main_node = $("#main");
         Controller.log_node = $("#log-wrapper");
         window.globals = {
+            transaction_url: null,
             controller: new Controller("http://localhost:9000/debug_sse"),
             services: {},
             tr_generator: new TransactionGenerator(),
@@ -408,21 +413,17 @@
         window.globals.tr_generator.connect(tr_generator_params, $("#tr_generator_json"));
         tr_generator_params.find("input").trigger("input");
 
-        $("#test_btn").click(test);
-
         $("#go_btn").click(function () {
             let url = $(this).parent().parent().find(">input").val();
             $.ajax(url, {
                 method: "POST",
                 data: JSON.stringify(globals.tr_generator.json),
                 contentType: "application/json; charset=utf-8"
+            }).done(function (data) {
+                globals.transaction_url = data["uri"];
             });
             $('[href="#main"]').tab("show");
         });
-
-        /*window.globals.controller.sse_listener.onmsg({
-         data: `{"event": "test", "t": {"@datetime":${(new Date()).valueOf() / 1000}}, "data": "hello"}`
-         });*/
     });
 </script>
 </body>

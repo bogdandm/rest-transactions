@@ -87,3 +87,7 @@ class TestFlask(TestCase):
 		rv = self.client.get("/api/json?ch=b")
 		data = json_lib.loads(str(rv.data, encoding="utf-8"))
 		self.assertEqual(data, {'ord': 1, 'uri': 'http://localhost/api/json/b', 'ch': 'b'})
+
+	def test404(self):
+		rv = self.client.get("/")
+		self.assertEqual(rv.status, '404 Page not found')

@@ -89,7 +89,7 @@ var EventListener = function () {
                 if (this instanceof EventListener) self = this;else self = this.parent;
                 var data = e.data;
                 if (data === "INIT" || data === "PING") {
-                    console.log(data);
+                    console.info(data);
                     return;
                 }
 

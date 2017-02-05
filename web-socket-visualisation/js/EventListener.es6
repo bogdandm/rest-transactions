@@ -78,7 +78,7 @@ const EventListener = (function () {
                 self = this.parent;
             let data = e.data;
             if (data === "INIT" || data === "PING") {
-                console.log(data);
+                console.info(data);
                 return;
             }
 

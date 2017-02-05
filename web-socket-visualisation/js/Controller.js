@@ -1,5 +1,7 @@
 "use strict";
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
@@ -37,20 +39,67 @@ var Controller = function () {
             if (Controller.log_node !== null) {
                 Controller.log_node.append(this.sse_listener.node);
             }
+
+            this.controller_status = {};
+            this.controller_status_body = this.body.find("#controller_status");
+            this.controller_status_formatter = new JSONFormatter(this.controller_status, 2, {
+                hoverPreviewEnabled: false,
+                theme: '',
+                animateOpen: false,
+                animateClose: false
+            });
+            setInterval(this.updateStatus.bind(this), 1000, this);
         }
 
         _createClass(Controller, [{
+            key: "updateStatus",
+            value: function updateStatus() {
+                var _this = this;
+
+                var self = this;
+                $.getJSON(globals.transaction_url, function (data) {
+                    var _iteratorNormalCompletion = true;
+                    var _didIteratorError = false;
+                    var _iteratorError = undefined;
+
+                    try {
+                        for (var _iterator = Object.entries(data)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                            var _step$value = _slicedToArray(_step.value, 2),
+                                key = _step$value[0],
+                                value = _step$value[1];
+
+                            self.controller_status[key] = value;
+                        }
+                    } catch (err) {
+                        _didIteratorError = true;
+                        _iteratorError = err;
+                    } finally {
+                        try {
+                            if (!_iteratorNormalCompletion && _iterator.return) {
+                                _iterator.return();
+                            }
+                        } finally {
+                            if (_didIteratorError) {
+                                throw _iteratorError;
+                            }
+                        }
+                    }
+
+                    self.controller_status_body.empty().append(_this.controller_status_formatter.render());
+                });
+            }
+        }, {
             key: "init",
             value: function init(data) {
                 this.global_timeout.setMax(data.timeout);
                 this.global_timeout.startTimer();
-                var _iteratorNormalCompletion = true;
-                var _didIteratorError = false;
-                var _iteratorError = undefined;
+                var _iteratorNormalCompletion2 = true;
+                var _didIteratorError2 = false;
+                var _iteratorError2 = undefined;
 
                 try {
-                    for (var _iterator = data.actions[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-                        var action = _step.value;
+                    for (var _iterator2 = data.actions[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+                        var action = _step2.value;
 
                         var n = Number(action.service.url.match(/localhost:501([0-9])/)[1]);
                         var service = new Service("Service #" + n, action.service.timeout, "http://localhost:901" + n + "/debug_sse");
@@ -65,16 +114,16 @@ var Controller = function () {
                         }
                     }
                 } catch (err) {
-                    _didIteratorError = true;
-                    _iteratorError = err;
+                    _didIteratorError2 = true;
+                    _iteratorError2 = err;
                 } finally {
                     try {
-                        if (!_iteratorNormalCompletion && _iterator.return) {
-                            _iterator.return();
+                        if (!_iteratorNormalCompletion2 && _iterator2.return) {
+                            _iterator2.return();
                         }
                     } finally {
-                        if (_didIteratorError) {
-                            throw _iteratorError;
+                        if (_didIteratorError2) {
+                            throw _iteratorError2;
                         }
                     }
                 }
@@ -82,7 +131,7 @@ var Controller = function () {
         }, {
             key: "setStatus",
             value: function setStatus(status) {
-                var _this = this;
+                var _this2 = this;
 
                 /*
                  case "ready_commit":
@@ -96,51 +145,51 @@ var Controller = function () {
                 (function () {
                     switch (status) {
                         case "open_connection":
-                            _this.bulb_ugly.turn_blink(false);
-                            _this.bulb_good.turn_blink(false);
-                            _this.bulb_bad.turn_blink(false);
+                            _this2.bulb_ugly.turn_blink(false);
+                            _this2.bulb_good.turn_blink(false);
+                            _this2.bulb_bad.turn_blink(false);
                             panel.replaceClass("panel-", "panel-default");
                             break;
 
                         case "lost_connection":
                             var duration = 1500;
                             setTimeout(function () {
-                                return _this.bulb_ugly.turn_blink(duration);
+                                return _this2.bulb_ugly.turn_blink(duration);
                             }, 0);
                             setTimeout(function () {
-                                return _this.bulb_good.turn_blink(duration);
+                                return _this2.bulb_good.turn_blink(duration);
                             }, duration / 3);
                             setTimeout(function () {
-                                return _this.bulb_bad.turn_blink(duration);
+                                return _this2.bulb_bad.turn_blink(duration);
                             }, 2 * duration / 3);
                             panel.replaceClass("panel-", "panel-warning");
                             break;
 
                         case "fail":
                             panel.replaceClass("panel-", "panel-danger");
-                            _this.global_timeout.stopTimer();
-                            _this.bulb_good.turn(false);
-                            _this.bulb_bad.turn();
+                            _this2.global_timeout.stopTimer();
+                            _this2.bulb_good.turn(false);
+                            _this2.bulb_bad.turn();
                             break;
 
                         case "commit":
                             panel.replaceClass("panel-", "panel-primary");
-                            _this.bulb_good.turn_blink();
+                            _this2.bulb_good.turn_blink();
                             break;
 
                         case "finish":
                             panel.replaceClass("panel-", "panel-success");
-                            _this.global_timeout.stopTimer();
-                            _this.bulb_ugly.turn();
-                            _this.bulb_good.turn();
+                            _this2.global_timeout.stopTimer();
+                            _this2.bulb_ugly.turn();
+                            _this2.bulb_good.turn();
                             break;
 
                         case "rollback":
                             panel.replaceClass("panel-", "panel-danger");
-                            _this.global_timeout.stopTimer();
-                            _this.bulb_ugly.turn();
-                            _this.bulb_good.turn(false);
-                            _this.bulb_bad.turn();
+                            _this2.global_timeout.stopTimer();
+                            _this2.bulb_ugly.turn();
+                            _this2.bulb_good.turn(false);
+                            _this2.bulb_bad.turn();
                             break;
 
                         default:
@@ -207,7 +256,7 @@ var Controller = function () {
         return Controller;
     }();
 
-    var pattern = "\n        <div id=\"controller\" class=\"container col-md-4\">\n            <div class=\"panel panel-default\">\n                <div class=\"panel-heading flex-h\">\n                    <span class=\"_name\">Controller</span>\n                    <div class=\"_bulbs flex-h\"></div>\n                </div>\n                <div class=\"panel-body\">\n                    <div id=\"controller_bars\" class=\"panel-group\">\n                        <!-- ProgressBar -->\n                    </div>        \n                    <div id=\"controller_services\" class=\"panel-group\">\n                        <!-- Services -->\n                    </div>\n                </div>\n            </div>\n        </div>\n    ";
+    var pattern = "\n        <div id=\"controller_status_wrapper\" class=\"panel-group\">\n            <div class=\"panel panel-default\">\n                <div id=\"controller_status\" class=\"panel-body\">-</div>\n            </div>\n        </div>\n        <div id=\"controller\" class=\"container col-md-4\">\n            <div class=\"panel panel-default\">\n                <div class=\"panel-heading flex-h\">\n                    <span class=\"_name\">Controller</span>\n                    <div class=\"_bulbs flex-h\"></div>\n                </div>\n                <div class=\"panel-body\">\n                    <div id=\"controller_bars\" class=\"panel-group\">\n                        <!-- ProgressBar -->\n                    </div>\n                    <div id=\"controller_services\" class=\"panel-group\">\n                        <!-- Services -->\n                    </div>\n                </div>\n            </div>\n        </div>\n    ";
     Controller._pattern = $(pattern);
     Controller.main_node = null;
     Controller.log_node = null;

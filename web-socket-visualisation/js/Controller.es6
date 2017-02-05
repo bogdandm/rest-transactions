@@ -27,6 +27,26 @@ const Controller = (function () {
             if (Controller.log_node !== null) {
                 Controller.log_node.append(this.sse_listener.node);
             }
+
+            this.controller_status = {};
+            this.controller_status_body = this.body.find("#controller_status");
+            this.controller_status_formatter = new JSONFormatter(this.controller_status, 2, {
+                hoverPreviewEnabled: false,
+                theme: '',
+                animateOpen: false,
+                animateClose: false
+            });
+            setInterval(this.updateStatus.bind(this), 1000, this);
+        }
+
+        updateStatus() {
+            let self = this;
+            $.getJSON(globals.transaction_url, (data) => {
+                for (let [key, value] of Object.entries(data)){
+                    self.controller_status[key] = value;
+                }
+                self.controller_status_body.empty().append(this.controller_status_formatter.render())
+            })
         }
 
         init(data) {
@@ -162,6 +182,11 @@ const Controller = (function () {
     };
 
     let pattern = `
+        <div id="controller_status_wrapper" class="panel-group">
+            <div class="panel panel-default">
+                <div id="controller_status" class="panel-body">-</div>
+            </div>
+        </div>
         <div id="controller" class="container col-md-4">
             <div class="panel panel-default">
                 <div class="panel-heading flex-h">
@@ -171,7 +196,7 @@ const Controller = (function () {
                 <div class="panel-body">
                     <div id="controller_bars" class="panel-group">
                         <!-- ProgressBar -->
-                    </div>        
+                    </div>
                     <div id="controller_services" class="panel-group">
                         <!-- Services -->
                     </div>
