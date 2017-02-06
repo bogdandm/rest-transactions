@@ -66,11 +66,10 @@ class TcpServer:
 		while not self.__stop.ready():
 			try:
 				raw = receive(socket_obj)  # BLOCK
-			except OSError as _:
-				TcpServer.log("?", "?", "Call failed", "WARNING")
+			except OSError as e:
+				TcpServer.log("?", e, "Call failed", "WARNING")
 				return
 			if not raw:
-				TcpServer.log("?", "?", "Call failed", "WARNING")
 				return
 
 			try:

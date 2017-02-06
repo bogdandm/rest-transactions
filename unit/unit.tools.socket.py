@@ -1,5 +1,6 @@
 from random import randint
 from typing import Tuple
+from unittest import SkipTest
 from unittest import TestCase
 
 import gevent
@@ -7,7 +8,7 @@ import gevent
 from tools import timeit
 from tools.gevent_ import g_async
 from tools.socket_ import Tcp404
-from tools.socket_.tcp_client import TcpClient
+from tools.socket_.tcp_client import TcpClient, TcpClientThreading
 from tools.socket_.tcp_server import TcpServer
 
 
@@ -34,12 +35,13 @@ class SocketClientServerTest(TestCase):
 	server = None  # type: Server
 	thread = None  # type: gevent.Greenlet
 	client = None  # type: TcpClient
+	client_class = TcpClient
 
 	@classmethod
 	def setUpClass(cls):
 		cls.server = Server(("127.0.0.1", 5000))
 		cls.thread = gevent.spawn(lambda: cls.server.run())
-		cls.client = TcpClient(("127.0.0.1", 5000))
+		cls.client = cls.client_class(("127.0.0.1", 5000))
 
 	@classmethod
 	def tearDownClass(cls):
@@ -67,7 +69,7 @@ class SocketClientServerTest(TestCase):
 
 		@g_async
 		def spawn():
-			client = TcpClient(("127.0.0.1", 5000))
+			client = self.client_class(("127.0.0.1", 5000))
 			for _ in range(n_repeats):
 				rv = client.call("get", {"ch": chr(randint(ord('a'), ord('z')))})
 				if rv.values[0] != '200':
@@ -80,3 +82,32 @@ class SocketClientServerTest(TestCase):
 
 		run()
 		self.assertFalse(fails, fails)
+
+	def test_spam_single_client(self):
+		if self.__class__ is SocketClientServerTest:
+			raise SkipTest()
+		n_sockets = 10
+		n_repeats = 100
+
+		fails = []
+
+		client = self.client
+
+		@g_async
+		def spawn():
+			for _ in range(n_repeats):
+				rv = client.call("get", {"ch": chr(randint(ord('a'), ord('z')))})
+				if isinstance(rv, Exception) or rv.values[0] != '200':
+					fails.append(rv)
+
+		@timeit
+		def run():
+			gevent.joinall([spawn() for _ in range(n_sockets)], timeout=20)
+
+		run()
+		client.close()
+		self.assertFalse(fails, fails)
+
+
+class SocketClientServerTestThreading(SocketClientServerTest):
+	client_class = TcpClientThreading

@@ -17,5 +17,43 @@
         "work": [5, 10]
       }
     ]
+  },
+  "test_spam_1": {
+    "count": 10,
+    "global_timeout": 100000,
+    "service_local_timeout": [60000, 90000],
+    "services": [
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      },
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      },
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      }
+    ]
+  },
+  "test_spam_2": {
+    "count": 100,
+    "global_timeout": 100000,
+    "service_local_timeout": [60000, 90000],
+    "services": [
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      },
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      },
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      }
+    ]
   }
 }

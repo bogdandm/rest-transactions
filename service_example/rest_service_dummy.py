@@ -133,7 +133,7 @@ class TransactionDummy(ATransaction):
 
 class Application(EmptyApp):
 	def __init__(self, root_path, app_root, debug=True):
-		super().__init__(root_path, app_root, extended_errors=debug)
+		super().__init__(root_path, app_root, extended_errors=debug, debug=debug)
 		self.transactions = MultiDict()  # type: Dict[Any, TransactionDummy]
 
 		@self.route("/transactions", methods=["POST"])
@@ -218,21 +218,25 @@ def main(no_sse=False, path=".", args=None):
 
 	parser = argparse.ArgumentParser(description='Transaction API REST Service')
 	parser.add_argument("-n", "--number", default=0, type=int)
-	parser.add_argument("-d", "--debug", default=0, action="store_true")
+	parser.add_argument("-d", "--debug", default=False, action="store_true")
+	parser.add_argument("--no_log", default=False, action="store_true")
 	parser.add_argument('-p', "--ping", type=int, nargs=2, metavar=('from', 'to'), default=[1, 5])
 	parser.add_argument('-w', "--work_timeout", type=int, nargs=2, metavar=('from', 'to'), default=[10, 30])
 	if args:
 		args, _ = parser.parse_known_args(args)
 	else:
 		args, _ = parser.parse_known_args()
-	n, debug, ping, work_timeout = args.number, args.debug, args.ping, args.work_timeout
+	n, debug, ping, work_timeout, no_log = args.number, args.debug, args.ping, args.work_timeout, args.no_log
 
 	# TODO: Give interval to randomize tests
 	TransactionDummy.ping_timeout = randint(*ping)
 	TransactionDummy.result_timeout = randint(*work_timeout)
 	if not no_sse:
 		_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
-	http_server = WSGIServer(('localhost', 5010 + n), Application(path, "/api", debug=debug))
+	http_server = WSGIServer(
+		('localhost', 5010 + n), Application(path, "/api", debug=debug),
+		log=None if no_log else 'default'
+	)
 	http_server.serve_forever()
 
 if __name__ == '__main__':

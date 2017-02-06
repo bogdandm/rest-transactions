@@ -6,7 +6,7 @@ from werkzeug.exceptions import NotFound, BadRequest
 
 from tools.flask_ import EmptyApp
 from tools.flask_.decorators import validate, json
-from tools.socket_.tcp_client import TcpClient
+from tools.socket_.tcp_client import TcpClientThreading
 
 
 class ControllerRestService(EmptyApp):
@@ -15,7 +15,7 @@ class ControllerRestService(EmptyApp):
 	def __init__(self, root_path, app_root="/api/%s" % VERSION):
 		super().__init__(root_path, app_root)
 		try:
-			self.client = TcpClient(("localhost", 5600))
+			self.client = TcpClientThreading(("localhost", 5600))
 		except ConnectionError as e:
 			logging.error(("localhost", 5600, e))
 			exit()
