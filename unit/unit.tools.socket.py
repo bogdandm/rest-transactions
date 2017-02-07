@@ -36,12 +36,13 @@ class SocketClientServerTest(TestCase):
 	thread = None  # type: gevent.Greenlet
 	client = None  # type: TcpClient
 	client_class = TcpClient
+	addr = 5123
 
 	@classmethod
 	def setUpClass(cls):
-		cls.server = Server(("127.0.0.1", 5000))
+		cls.server = Server(("127.0.0.1", cls.addr))
 		cls.thread = gevent.spawn(lambda: cls.server.run())
-		cls.client = cls.client_class(("127.0.0.1", 5000))
+		cls.client = cls.client_class(("127.0.0.1", cls.addr))
 
 	@classmethod
 	def tearDownClass(cls):
@@ -69,7 +70,7 @@ class SocketClientServerTest(TestCase):
 
 		@g_async
 		def spawn():
-			client = self.client_class(("127.0.0.1", 5000))
+			client = self.client_class(("127.0.0.1", self.addr))
 			for _ in range(n_repeats):
 				rv = client.call("get", {"ch": chr(randint(ord('a'), ord('z')))})
 				if rv.values[0] != '200':
@@ -111,3 +112,4 @@ class SocketClientServerTest(TestCase):
 
 class SocketClientServerTestThreading(SocketClientServerTest):
 	client_class = TcpClientThreading
+	addr = 5124
