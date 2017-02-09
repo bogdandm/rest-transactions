@@ -14,10 +14,10 @@ from tools.gevent_ import g_async
 
 # TODO: docs
 class ServerSentEvent(object):
-	def __init__(self, data):
+	def __init__(self, data, event=None, _id=None):
 		self.data = data
-		self.event = None
-		self.id = None
+		self.event = event
+		self.id = _id
 		self.desc_map = {
 			self.data: "data",
 			self.event: "event",
@@ -54,11 +54,9 @@ def _init():
 			yield ServerSentEvent('INIT').encode()
 
 			for result in _queue:
-				if isinstance(result, dict):
+				if isinstance(result, dict) or isinstance(result, list):
 					result = json.dumps(transform_json_types(result))
-				ev = ServerSentEvent(str(result))
-				yield ev.encode()
-			print("Connection close")
+				yield ServerSentEvent(str(result)).encode()
 
 		def onclose():
 			stream.close()

@@ -1,10 +1,12 @@
 import json
 import socket
 from abc import ABCMeta
+from functools import partial
 from re import match
 from typing import Tuple, Union
 
 from tools import transform_json_types
+from tools.flask_ import dejsonify
 
 
 def receive(socket_obj: socket.SocketType, block=1024) -> bytes:
@@ -16,11 +18,11 @@ def receive(socket_obj: socket.SocketType, block=1024) -> bytes:
 	:return:
 	"""
 	res = b""
-	while True:
-		b = socket_obj.recv(block)
+	for b in iter(partial(socket_obj.recv, block), b""):
 		res += b
-		if not b or b"\0" in b:
-			return res
+		if b.endswith(b"\0"):
+			break
+	return res
 
 
 class ATcpException(Exception, metaclass=ABCMeta):
@@ -53,6 +55,7 @@ class ATcpPacket(metaclass=ABCMeta):
 	def decode(cls, data: bytes) -> 'ATcpPacket':
 		"""
 		Factory class method
+		data should be in format b"*\n*\0" where * is any bytes sequence
 
 		:param data:
 		:return:
@@ -62,7 +65,7 @@ class ATcpPacket(metaclass=ABCMeta):
 			if match(r"^\W*$", js):
 				js = None
 			else:
-				js = json.loads(transform_json_types(js, direction=1))
+				js = dejsonify(js, need_transform=True)
 		except Exception as e:
 			raise Tcp500(e)
 		return cls(header, js)

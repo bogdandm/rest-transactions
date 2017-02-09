@@ -1,9 +1,9 @@
 import json
 import logging.config
+import pathlib
 import socket
 from typing import Tuple, Dict, Callable, Any, Union
 
-import pathlib
 from gevent.event import Event
 from gevent.queue import Queue
 
@@ -18,14 +18,13 @@ try:
 		logging.config.dictConfig(json.load(config))
 except FileNotFoundError:
 	path = pathlib.Path(__file__) / ".." / "tcp_logging.json"
-	with open(str(path.resolve())) as config:
+	with open(str(path.absolute().resolve())) as config:
 		logging.config.dictConfig(json.load(config))
 
 
-Logger = logging.getLogger("TcpServer")
-logging.info("Logger was inited")
-
 class TcpServer:
+	_logger = logging.getLogger("TcpServer")
+
 	def __init__(self, address: Tuple[str, int], max_connections=100):
 		self.socket = socket.socket()
 		self.socket.bind(address)
@@ -56,10 +55,13 @@ class TcpServer:
 			raise NameError(f.__name__)
 		return f
 
-	@staticmethod
-	def log(method: str, status: str, msg: str, level: str):
+	@property
+	def logger(self):
+		return self._logger
+
+	def log(self, method: str, status: str, msg: str, level: str):
 		s = "{:20s} | {:5s} | {}".format(method, status, msg)
-		logging.log(logging.getLevelName(level), s)
+		self.logger.log(logging.getLevelName(level), s)
 
 	@g_async
 	def _handler(self, socket_obj, address):
@@ -67,7 +69,7 @@ class TcpServer:
 			try:
 				raw = receive(socket_obj)  # BLOCK
 			except OSError as e:
-				TcpServer.log("?", e, "Call failed", "WARNING")
+				self.log("?", e, "Call failed", "WARNING")
 				return
 			if not raw:
 				return
@@ -77,26 +79,26 @@ class TcpServer:
 			except Tcp500 as e:
 				try:
 					method, _ = str(raw[:-1], encoding="utf-8").split("\n", 1)
-				except Exception:
+				except:
 					method = str(None)
-				TcpServer.log(method, "500", str(e.args), "WARNING")
+				self.log(method, "500", str(e.args), "WARNING")
 				socket_obj.sendall(Response(e.status, e).encode())
 				return
 
 			if method not in self.methods_map:
 				e = Tcp404("method not found")
-				TcpServer.log(method, "404", "Method not found", "WARNING")
+				self.log(method, "404", "Method not found", "WARNING")
 				socket_obj.sendall(Response(e.status, e).encode())
 				return
 
 			try:
 				resp = self.methods_map[method](json)
-				TcpServer.log(method, "200", "", "INFO")
+				self.log(method, "200", "", "INFO")
 			except ATcpException as e:
-				TcpServer.log(method, str(e.status), str(e.args), "WARNING")
+				self.log(method, str(e.status), str(e.args), "WARNING")
 				resp = Response(e.status, e.text)
 			except Exception as e:
-				TcpServer.log(method, "500", str(e.args), "WARNING")
+				self.log(method, "500", str(e.args), "WARNING")
 				resp = Response(500, "Fail")
 			else:
 				if type(resp) is tuple:

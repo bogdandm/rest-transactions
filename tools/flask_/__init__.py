@@ -1,7 +1,7 @@
 import json as json_lib
 import traceback
 from pathlib import Path
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Optional
 
 import werkzeug.exceptions
 from flask import Flask, Response, Request, make_response
@@ -68,7 +68,7 @@ def register_errors(
 			app.register_error_handler(error, func)
 
 
-def request_data(request_: Request):
+def request_data(request_: Request) -> Optional[dict]:
 	"""
 	Get data from any type of request
 
@@ -83,7 +83,7 @@ def request_data(request_: Request):
 	return request_.form
 
 
-def dejsonify(data: str, need_transform=False) -> Union[dict, list]:
+def dejsonify(data: str, need_transform=False) -> Union[dict, list, str, int, float]:
 	"""
 	Wrapper to json_lib.loads and tools.transform_json_types functions
 
@@ -121,7 +121,7 @@ class EmptyApp(Flask):
 	they will be loaded to self.schemas dict (access by file name without suffix).
 	"""
 
-	def __init__(self, root_path, app_root, debug=False, extended_errors=True):
+	def __init__(self, root_path: Union[Path, str], app_root, debug=False, extended_errors=True):
 		"""
 
 		:param root_path: Path to work dir
@@ -155,6 +155,10 @@ class EmptyApp(Flask):
 			response.headers["Access-Control-Allow-Origin"] = '*'
 			return response
 
+	def register_crossdomain(self, *rules: List[str]):
+		for rule in rules:
+			self.add_url_rule(rule, endpoint=rule + "_options", view_func=self._options, methods=["OPTIONS"])
+
 	@staticmethod
 	def _options(*args):
 		response = make_response()
@@ -163,7 +167,3 @@ class EmptyApp(Flask):
 		response.headers['Access-Control-Max-Age'] = 1000
 		response.headers['Access-Control-Allow-Headers'] = 'origin, x-csrftoken, content-type, accept'
 		return response
-
-	def register_crossdomain(self, *rules):
-		for rule in rules:
-			self.add_url_rule(rule, endpoint=rule + "_options", view_func=self._options, methods=["OPTIONS"])

@@ -103,7 +103,7 @@ class Transaction(ATransaction):
 			self.fail.set()  # EMIT(fail)
 
 		w_fail = Wait([ch.fail for ch in self.childes.values()], count=1, timeout=self.global_timeout,
-					  then=on_child_fail, connect_to=self)
+					  then=on_child_fail, parent=self)
 
 		e = wait((self.fail, self.done), count=1, timeout=self.global_timeout)
 		if self.done.ready(): return

@@ -54,11 +54,10 @@ class TcpClientThreading(ATcpClient):
 		self.address = address
 
 	def call(self, method: str, data: dict = None) -> Response:
-		soc = socket.socket()
-		soc.connect(self.address)
-		soc.sendall(Request(method, data).encode())
-		raw = receive(soc, 2 ** 10 * 8)
-		soc.close()
+		with socket.socket() as soc:
+			soc.connect(self.address)
+			soc.sendall(Request(method, data).encode())
+			raw = receive(soc, 2 ** 10 * 8)
 		return Response.decode(raw)
 
 	def close(self):

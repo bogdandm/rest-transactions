@@ -84,7 +84,7 @@ def drename(d: dict, keys: dict, filter_=False):
 
 def group(d: dict, *groups: List[str], delimiter="_"):
 	"""
-	replace dict items which are startwith any item from group
+	Replace dict items which are startwith any item from group. Create new dict
 
 	>>> group({"A_1": True, "A_2": False}, "A")
 	{'A': {'2': False, '1': True}}
@@ -123,7 +123,7 @@ def get_i(iterable: Iterable, i: int):
 		yield item[i]
 
 
-def get_from_first(key, *getters) -> Any:
+def get_from_first(key, *getters, default=None) -> Any:
 	"""
 	Return first key => value from getters (see example)
 
@@ -138,7 +138,7 @@ def get_from_first(key, *getters) -> Any:
 		if item and (isinstance(item, dict) and key in item
 					 or isinstance(key, numbers.Number) and hasattr(item, "__len__") and 0 <= key < len(item)):
 			return item[key]
-	return None
+	return default
 
 
 def rvg(g: Iterator):
