@@ -1,0 +1,7 @@
+{
+  "init": "CREATE TABLE IF NOT EXISTS Transactions (id TEXT PRIMARY KEY NOT NULL, fail BOOLEAN NOT NULL DEFAULT 0, complete BOOLEAN NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT ''); UPDATE Transactions SET fail=1 WHERE complete=0;",
+  "create": "INSERT INTO Transactions(id) VALUES (?)",
+  "get": "SELECT * FROM Transactions WHERE id=?",
+  "complete": "UPDATE Transactions SET complete=1, status=? WHERE id=? AND fail=0",
+  "fail": "UPDATE Transactions SET fail=1, status=? WHERE id=?"
+}

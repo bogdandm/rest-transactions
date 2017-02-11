@@ -4,6 +4,7 @@ from typing import List
 
 from gevent import Greenlet
 from gevent import event
+from gevent.pool import Group
 
 import tools
 from tools.gevent_ import g_async
@@ -27,7 +28,7 @@ class ATransaction(metaclass=ABCMeta):
 	@abstractmethod
 	def __init__(self, _id):
 		self.id = _id
-		self.threads = []  # type: List[Greenlet]
+		self.threads = Group()
 		self.ready_commit = event.Event()
 		self.commit = event.Event()
 		self.fail = event.Event()

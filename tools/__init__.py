@@ -1,10 +1,12 @@
 import collections
+import json
 import logging
 import numbers
 import time
 import typing
 from base64 import b64encode, b64decode
 from datetime import datetime
+from enum import Enum
 from typing import Iterable, Union, Any, Iterator, List, Tuple, Callable, Set, Dict
 
 from bson import ObjectId
@@ -361,3 +363,18 @@ class LevelFilter(logging.Filter):
 		elif isinstance(self.param, Iterable):
 			return record.levelname in self.param
 		return False
+
+
+class Singleton(type):
+	_instances = {}
+
+	def __call__(cls, *args, **kwargs):
+		if cls not in cls._instances:
+			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+		return cls._instances[cls]
+
+class EnumEncoder(json.JSONEncoder):
+	def default(self, obj):
+		if isinstance(obj, Enum):
+			return obj.name
+		return json.JSONEncoder.default(self, obj)

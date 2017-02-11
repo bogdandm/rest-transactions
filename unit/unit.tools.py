@@ -154,6 +154,16 @@ class CoreUtilsTest(TestCase):
 		d.remove(y)
 		self.assertTrue(d[2] is x and not ('a' in d and 'b' in d))
 
+	def test_Singleton(self):
+		class A(metaclass=Singleton):
+			def __init__(self, x, y):
+				self.x = x
+				self.y = y
+
+		a1 = A(1, 2)
+		a2 = A(3, 4)
+		self.assertTrue(a1 is a2 and a1.x == a2.x == 1)
+
 
 class GEventTest(TestCase):
 	def setUp(self):
