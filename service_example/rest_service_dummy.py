@@ -20,11 +20,6 @@ from tools.flask_.decorators import validate, json
 from tools.gevent_ import g_async
 from tools.transactions import ATransaction
 
-app = None  # type: Application
-
-PING = (2, 5)
-WORK = (10, 30)
-
 
 class TransactionDummy(ATransaction):
 	ping_timeout = 5  # sec
@@ -32,7 +27,6 @@ class TransactionDummy(ATransaction):
 
 	def __init__(self, callback_url: str, local_timeout: int, ping_timeout=None, result_timeout=None):
 		super().__init__(ObjectId())
-		print(callback_url)
 		self.callback_url = callback_url
 		self.local_timeout = local_timeout  # type: float
 		self.ping_timeout = ping_timeout if ping_timeout is not None else TransactionDummy.ping_timeout  # type: float
@@ -87,7 +81,6 @@ class TransactionDummy(ATransaction):
 	def result_thread(self, resource):
 		sleep(self.result_timeout)  # BLOCK, sleep
 		if not (self.ready_commit.ready() or self.fail.ready()):
-			global app
 			self.result.set(resource)  # EMIT(result)
 			self.ready_commit.set()  # EMIT(ready_commit)
 			debug_SSE.event({"event": "ready_commit", "t": datetime.now(), "data": None})  # DEBUG ready_commit
@@ -98,8 +91,8 @@ class TransactionDummy(ATransaction):
 				}
 			}
 			rp = requests.put(self.callback_url, headers={"Connection": "close"}, json=data, timeout=5)
-		else:
-			raise Exception("error during work")
+		# else:
+		# 	raise Exception("error during work")
 
 	def ping(self) -> bool:
 		if not (self.fail.ready() or self.done.ready()):
@@ -212,7 +205,7 @@ class Application(EmptyApp):
 			}
 
 
-def main(no_sse=False, path=".", args=None):
+def main(args=None):
 	import argparse
 	global _debug_thread
 
@@ -220,24 +213,27 @@ def main(no_sse=False, path=".", args=None):
 	parser.add_argument("-n", "--number", default=0, type=int)
 	parser.add_argument("-d", "--debug", default=False, action="store_true")
 	parser.add_argument("--no_log", default=False, action="store_true")
+	parser.add_argument("--no_sse", default=False, action="store_true")
 	parser.add_argument('-p', "--ping", type=int, nargs=2, metavar=('from', 'to'), default=[1, 5])
 	parser.add_argument('-w', "--work_timeout", type=int, nargs=2, metavar=('from', 'to'), default=[10, 30])
+	parser.add_argument("-P", "--path", default=".", type=str)
+
 	if args:
 		args, _ = parser.parse_known_args(args)
 	else:
 		args, _ = parser.parse_known_args()
-	n, debug, ping, work_timeout, no_log = args.number, args.debug, args.ping, args.work_timeout, args.no_log
 
 	# TODO: Give interval to randomize tests
-	TransactionDummy.ping_timeout = randint(*ping)
-	TransactionDummy.result_timeout = randint(*work_timeout)
-	if not no_sse:
-		_debug_thread = debug_SSE.spawn(("localhost", 9010 + n))
+	TransactionDummy.ping_timeout = randint(*args.ping)
+	TransactionDummy.result_timeout = randint(*args.work_timeout)
+	if not args.no_sse:
+		_debug_thread = debug_SSE.spawn(("localhost", 9010 + args.number))
 	http_server = WSGIServer(
-		('localhost', 5010 + n), Application(path, "/api", debug=debug),
-		log=None if no_log else 'default'
+		('localhost', 5010 + args.number), Application(args.path, "/api", debug=args.debug),
+		log=None if args.no_log else 'default'
 	)
 	http_server.serve_forever()
+
 
 if __name__ == '__main__':
 	main()
