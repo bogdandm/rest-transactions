@@ -2,7 +2,7 @@ import json
 from multiprocessing import Process
 from pathlib import Path
 from random import randint
-from unittest import TestCase, skip
+from unittest import TestCase
 
 import gevent
 import gevent.monkey
@@ -73,25 +73,29 @@ class GlobalTest(TestCase):
 
 		self.controller = Process(
 			target=socket_api.main,
-			args=(True,)
+			args=[(
+				'--no_log',
+				'--no_sse'
+			)]
 		)
 		self.controller_api = Process(
 			target=rest_service.main,
-			args=(str((ROOT_PATH / "controller").resolve().absolute()),)
+			args=[(
+				'-P', str((ROOT_PATH / "controller").resolve().absolute()),
+				'--no_log'
+			)]
 		)
 		self.services = [
 			Process(
 				target=rest_service_dummy.main,
-				args=(
-					True,
-					str((ROOT_PATH / "service_example").resolve().absolute()),
-					(
-						'-n', str(n),
-						'-p', str(service["ping"][0]), str(service["ping"][1]),
-						'-w', str(service["work"][0]), str(service["work"][1]),
-						'--no_log'
-					)
-				)
+				args=[(
+					'-n', str(n),
+					'-p', str(service["ping"][0]), str(service["ping"][1]),
+					'-w', str(service["work"][0]), str(service["work"][1]),
+					'-P', str((ROOT_PATH / "service_example").resolve().absolute()),
+					'--no_log',
+					'--no_sse'
+				)]
 			) for n, service in enumerate(self.config["services"])]
 
 		self.controller.start()
@@ -117,7 +121,7 @@ class GlobalTest(TestCase):
 	def test_spam_1(self):
 		self.spam_transaction()
 
-	@skip("")
+	# @skip("")
 	def test_spam_2(self):
 		self.spam_transaction(100)
 

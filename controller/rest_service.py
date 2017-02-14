@@ -77,8 +77,20 @@ class ControllerRestService(EmptyApp):
 			# 	pass
 
 
-def main(path="."):
-	http_server = WSGIServer(('', 5000), ControllerRestService(path))
+def main(args=None):
+	import argparse
+
+	parser = argparse.ArgumentParser(description='Controller API REST Service')
+	parser.add_argument("--no_log", default=False, action="store_true")
+	parser.add_argument("-P", "--path", default=".", type=str)
+	parser.add_argument("-p", "--port", default=5000, type=int)
+
+	if args:
+		args, _ = parser.parse_known_args(args)
+	else:
+		args, _ = parser.parse_known_args()
+
+	http_server = WSGIServer(('', args.port), ControllerRestService(args.path), log=None if args.no_log else 'default')
 	http_server.serve_forever()
 
 if __name__ == '__main__':

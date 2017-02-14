@@ -43,15 +43,15 @@
     "service_local_timeout": [60000, 90000],
     "services": [
       {
-        "ping": [1, 2],
+        "ping": [4, 5],
         "work": [5, 10]
       },
       {
-        "ping": [1, 2],
+        "ping": [4, 5],
         "work": [5, 10]
       },
       {
-        "ping": [1, 2],
+        "ping": [4, 5],
         "work": [5, 10]
       }
     ]

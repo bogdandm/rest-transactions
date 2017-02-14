@@ -8,8 +8,8 @@ from tools.socket_.tcp_server import TcpServer
 
 
 class Daemon(TcpServer):
-	def __init__(self, address=("127.0.0.1", 5000), db=None):
-		super().__init__(address)
+	def __init__(self, address=("127.0.0.1", 5000), db=None, *args, **kwargs):
+		super().__init__(address, *args, **kwargs)
 		self.transactions = TransactionManager(db)
 
 		@self.method
@@ -58,13 +58,29 @@ class Daemon(TcpServer):
 			return 200, {"ID": str(tr.id)}
 
 
-def main(no_sse=False, db="test.db"):
+def main(args=None):
+	import argparse
 	global _debug_thread
-	if not no_sse:
+
+	parser = argparse.ArgumentParser(description='Controller API TCP Service')
+	parser.add_argument("--no_log", default=False, action="store_true")
+	parser.add_argument("--no_sse", default=False, action="store_true")
+	parser.add_argument("--db", default=":memory:", type=str)
+	parser.add_argument("-p", "--port", default=5600, type=int)
+
+	if args:
+		args, _ = parser.parse_known_args(args)
+	else:
+		args, _ = parser.parse_known_args()
+
+	if not args.no_sse:
 		_debug_thread = debug_SSE.spawn(("localhost", 9000))
 
 	Transaction.set_self_url("http://localhost:5000/api/alpha/transactions")  # TODO: Sent from REST Service
-	daemon = Daemon(("127.0.0.1", 5600), db)
+	daemon = Daemon(("127.0.0.1", args.port), args.db)
+	if args.no_log:
+		daemon.logger.disabled = True
+
 	daemon.run()
 
 

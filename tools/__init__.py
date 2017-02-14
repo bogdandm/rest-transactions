@@ -10,7 +10,6 @@ from enum import Enum
 from typing import Iterable, Union, Any, Iterator, List, Tuple, Callable, Set, Dict
 
 from bson import ObjectId
-from mysql.connector import IntegrityError
 
 KT = typing.TypeVar('KT')
 VT = typing.TypeVar('VT')
@@ -162,8 +161,6 @@ def rvg(g: Iterator):
 		return next(g)
 	except StopIteration as r:
 		return r.value
-	except IntegrityError:
-		return None
 
 
 # ================================================================ #

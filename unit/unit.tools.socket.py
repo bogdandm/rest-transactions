@@ -85,7 +85,7 @@ class SocketClientServerTest(TestCase):
 		self.assertFalse(fails, fails)
 
 	def test_spam_single_client(self):
-		if self.__class__ is SocketClientServerTest:
+		if self.client_class is TcpClient:
 			raise SkipTest()
 		n_sockets = 10
 		n_repeats = 100
