@@ -121,7 +121,10 @@ class Transaction(ATransaction):
 	def status(self):
 		return {
 			"global": super().status.name,
-			**{ch.id: ch.status.name for ch in self.childes.values()}
+			**{ch.id: {
+				"status": ch.status.name,
+				"service_response": ch.response.value
+			} for ch in self.childes.values()}
 		}
 
 	def __repr__(self):

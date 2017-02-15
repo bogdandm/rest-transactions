@@ -133,13 +133,13 @@ traits:
           body:
             example: |
               {
-                "status": "in_process",
+                "status": "IN_PROGRESS",
                 "id1": {
-                  "status": "finish",
-                  "response": {}
+                  "status": "READY_COMMIT",
+                  "service_response": {}
                 },
-                "id2": "in_process",
-                "id3": "in_process",
+                "id2": "IN_PROGRESS",
+                "id3": "IN_PROGRESS",
                 "id4": "wait(id3)"
               }
 

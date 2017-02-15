@@ -42,13 +42,13 @@ var Controller = function () {
 
             this.controller_status = {};
             this.controller_status_body = this.body.find("#controller_status");
-            this.controller_status_formatter = new JSONFormatter(this.controller_status, 2, {
+            this.controller_status_formatter = new JSONFormatter(this.controller_status, 10, {
                 hoverPreviewEnabled: false,
                 theme: '',
                 animateOpen: false,
                 animateClose: false
             });
-            setInterval(this.updateStatus.bind(this), 1000, this);
+            this.controller_status_timer = setInterval(this.updateStatus.bind(this), 1000, this);
         }
 
         _createClass(Controller, [{
@@ -178,6 +178,7 @@ var Controller = function () {
                             break;
 
                         case "finish":
+                            clearInterval(_this2.controller_status_timer);
                             panel.replaceClass("panel-", "panel-success");
                             _this2.global_timeout.stopTimer();
                             _this2.bulb_ugly.turn();

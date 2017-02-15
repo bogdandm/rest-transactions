@@ -30,13 +30,13 @@ const Controller = (function () {
 
             this.controller_status = {};
             this.controller_status_body = this.body.find("#controller_status");
-            this.controller_status_formatter = new JSONFormatter(this.controller_status, 2, {
+            this.controller_status_formatter = new JSONFormatter(this.controller_status, 10, {
                 hoverPreviewEnabled: false,
                 theme: '',
                 animateOpen: false,
                 animateClose: false
             });
-            setInterval(this.updateStatus.bind(this), 1000, this);
+            this.controller_status_timer = setInterval(this.updateStatus.bind(this), 1000, this);
         }
 
         updateStatus() {
@@ -108,6 +108,7 @@ const Controller = (function () {
                     break;
 
                 case "finish":
+                    clearInterval(this.controller_status_timer);
                     panel.replaceClass("panel-", "panel-success");
                     this.global_timeout.stopTimer();
                     this.bulb_ugly.turn();
