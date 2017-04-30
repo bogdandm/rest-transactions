@@ -3,15 +3,16 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
+from urllib.parse import urlparse, ParseResult
 
-import requests as request_lib
+import urllib3
 from bson import ObjectId
 from gevent import Greenlet
 from gevent import joinall
 from gevent import sleep
 from gevent import wait
 
-from tools import debug_SSE, MultiDict, Singleton
+from tools import debug_SSE, Singleton, MultiDict
 from tools import transform_json_types
 from tools.gevent_ import g_async, Wait
 from tools.transactions import ATransaction
@@ -26,13 +27,27 @@ def dict_factory(cursor, row):
 	return d
 
 
+class HTTPConnectionPoolWithLock(urllib3.HTTPConnectionPool):
+	def __init__(self, host, **conn_kw):
+		super().__init__(host, **conn_kw)
+		self.lock = 0
+
+	def acquire(self):
+		self.lock += 1
+
+	def release(self):
+		if self.lock:
+			self.lock -= 1
+
+
 class TransactionManager(metaclass=Singleton):
-	instance = None  # type: TransactionManager
+	instance: 'TransactionManager' = None
 	def_db = ":memory:"
 
 	def __init__(self, db=None):
 		TransactionManager.instance = self
-		self._transactions = {}  # type: Dict[ObjectId, Transaction]
+		self._transactions: Dict[ObjectId, Transaction] = {}
+		self._connections: Dict[str, HTTPConnectionPoolWithLock] = {}
 		self.db = sqlite3.connect(db if db else self.def_db)
 		with open(str(_path / "sql.json")) as f:
 			self.queries = json.load(f)
@@ -56,16 +71,6 @@ class TransactionManager(metaclass=Singleton):
 		tr.run()
 		return tr
 
-	def __getitem__(self, _id: ObjectId):
-		if _id in self._transactions:
-			return self._transactions[_id]
-		else:
-			cur = self.db.cursor()
-			cur.execute(self.queries["get"], (str(_id),))
-			tr = cur.fetchone()
-			cur.close()
-			return tr
-
 	def finish(self, tr: 'Transaction'):
 		cur = self.db.cursor()
 		cur.execute(
@@ -76,6 +81,37 @@ class TransactionManager(metaclass=Singleton):
 		cur.close()
 
 		del self._transactions[tr.id]
+
+	def connect(self, host: str, port: int):
+		key = host + ':' + str(port)
+		if key not in self._connections:
+			conn = self._connections[key] = HTTPConnectionPoolWithLock(
+				host, port=port, block=True, maxsize=1000,
+				headers={"Content-Type": "application/json"}
+			)
+		else:
+			conn = self._connections[key]
+		conn.acquire()
+		return conn
+
+	def disconnect(self, host: str, port: int):
+		key = host + ':' + str(port)
+		conn = self._connections.get(key)
+		if conn:
+			conn.release()
+			if conn.lock == 0:
+				conn.close()
+				del self._connections[key]
+
+	def __getitem__(self, _id: ObjectId):
+		if _id in self._transactions:
+			return self._transactions[_id]
+		else:
+			cur = self.db.cursor()
+			cur.execute(self.queries["get"], (str(_id),))
+			tr = cur.fetchone()
+			cur.close()
+			return tr
 
 
 class Transaction(ATransaction):
@@ -112,10 +148,10 @@ class Transaction(ATransaction):
 		super().__init__(ObjectId())
 		debug_SSE.event({"event": "init", "t": datetime.now(), "data": data})  # DEBUG init
 		self.global_timeout = data["timeout"] / 1000
-		self.global_timeout_thread = None  # type: Greenlet
-		self.childes = MultiDict(
+		self.global_timeout_thread: Greenlet = None
+		self.childes: Dict[Any, ChildTransaction] = MultiDict(
 			{tr["_id"]: ChildTransaction(self, **tr) for tr in data["actions"]}
-		)  # type: Dict[Any, ChildTransaction]
+		)
 
 	@property
 	def status(self):
@@ -190,6 +226,9 @@ class Transaction(ATransaction):
 		self.main_thread.kill()
 		self.global_timeout_thread.kill()
 		self.threads.kill()
+		for ch in self.childes.values():
+			url = ch.service.url
+			TransactionManager.instance.disconnect(url.hostname, url.port)
 
 		for w in Wait.connections[self]:
 			w.kill()
@@ -200,11 +239,12 @@ class Transaction(ATransaction):
 class ChildTransaction(ATransaction):
 	class Service:
 		def __init__(self, url, timeout):
-			self.url = url
+			self.url: ParseResult = urlparse(url[:-1] if url.endswith("/") else url)
+			self.session = TransactionManager.instance.connect(self.url.hostname, self.url.port)
 			self.timeout = timeout / 1000
 
 		def __repr__(self):
-			return "<{}>".format(self.url)
+			return f"<{self.url.path}>"
 
 	def __init__(self, parent: 'Transaction', _id: str, url: str, method: str, data: dict, headers: dict, service: dict,
 				 **kwargs):
@@ -216,7 +256,7 @@ class ChildTransaction(ATransaction):
 		self.method = method
 		self.data = data
 		self.headers = headers
-		self.service = ChildTransaction.Service(**service)  # type: ChildTransaction.Service
+		self.service: ChildTransaction.Service = ChildTransaction.Service(**service)
 
 		self.remote_id = None
 		self.key = None
@@ -225,17 +265,21 @@ class ChildTransaction(ATransaction):
 	@g_async
 	def _spawn(self):
 		try:
-			resp = request_lib.post(self.service.url + "/transactions", json={
-				"timeout": self.service.timeout,
-				"callback-url": "{}/{}".format(self.parent.self_url, self.parent.id)
-			}, timeout=self.service.timeout)  # BLOCK, timeout
-		except request_lib.RequestException:
+			resp: urllib3.HTTPResponse = self.service.session.request(
+				"POST", self.service.url.path + "/transactions",
+				body=json.dumps({
+					"timeout": self.service.timeout,
+					"callback-url": f"{self.parent.self_url}/{self.parent.id}"
+				}),
+				timeout=self.service.timeout
+			)  # BLOCK, timeout
+		except urllib3.exceptions.HTTPError as e:
 			self.fail.set()  # EMIT(fail)
 		else:
-			if not resp.ok:
+			if resp.status != 200:
 				self.fail.set()  # EMIT(fail)
 			else:
-				js = resp.json()
+				js = json.loads(resp.data)
 				transform_json_types(js, direction=1)
 				# TODO: validate
 
@@ -258,16 +302,21 @@ class ChildTransaction(ATransaction):
 		while not (self.parent.done.ready() or self.fail.ready()):
 			debug_SSE.event({"event": "ping_child", "t": datetime.now(), "data": self.id})  # DEBUG ping_child
 			try:
-				resp = request_lib.get("{}/transactions/{}".format(self.service.url, self.remote_id), headers={
-					"X-Transaction": self.key
-				}, timeout=self.ping_timeout)  # BLOCK, timeout
-			except request_lib.RequestException:
+				start = datetime.now()
+				resp: urllib3.HTTPResponse = self.service.session.request(
+					"GET", f"{self.service.url.path}/transactions/{self.remote_id}",
+					headers={
+						"X-Transaction": self.key
+					}, timeout=self.ping_timeout
+				)  # BLOCK, timeout
+			except urllib3.exceptions.HTTPError:
 				self.fail.set()  # EMIT(fail)
 			else:
-				if resp.ok:
-					sleep(self.ping_timeout - resp.elapsed.total_seconds() - 0.1)  # BLOCK, sleep
-				else:
+				if resp.status != 200:
 					self.fail.set()  # EMIT(fail)
+				else:
+					end = datetime.now()
+					sleep(self.ping_timeout - (end - start).total_seconds() - 0.1)  # BLOCK, sleep
 
 	@g_async
 	def wait_done(self):  # DEBUG # LISTENER
@@ -285,13 +334,18 @@ class ChildTransaction(ATransaction):
 			"data": self.id
 		})  # DEBUG prepare_commit_child
 		try:
-			resp = request_lib.request(self.method, self.service.url + self.url, headers={
-				"X-Transaction": self.key, **self.headers
-			}, json=self.data, timeout=self.service.timeout)  # BLOCK, timeout
-		except request_lib.RequestException:
+			resp: urllib3.HTTPResponse = self.service.session.request(
+				self.method, self.service.url.path + self.url,
+				headers={
+					"X-Transaction": self.key, **self.headers
+				},
+				body=json.dumps(self.data),
+				timeout=self.service.timeout
+			)  # BLOCK, timeout
+		except urllib3.exceptions.HTTPError:
 			self.fail.set()  # EMIT(fail)
 			return
-		if not resp.ok:
+		if resp.status != 200:
 			self.fail.set()  # EMIT(fail)
 			return
 
@@ -310,13 +364,16 @@ class ChildTransaction(ATransaction):
 	def do_commit(self):
 		try:
 			# BLOCK, timeout
-			resp = request_lib.post("{}/transactions/{}".format(self.service.url, str(self.remote_id)), headers={
-				"X-Transaction": self.key
-			}, timeout=self.parent.done_timeout)
-		except request_lib.RequestException:
+			resp: urllib3.HTTPResponse = self.service.session.request(
+				"POST", f"{self.service.url.path}/transactions/{self.remote_id}", headers={
+					"X-Transaction": self.key
+				},
+				timeout=self.parent.done_timeout
+			)
+		except urllib3.exceptions.HTTPError:
 			self.fail.set()  # EMIT(fail)
 			return False
-		if not resp.ok:
+		if resp.status != 200:
 			self.fail.set()  # EMIT(fail)
 			return False
 		debug_SSE.event({
@@ -331,10 +388,14 @@ class ChildTransaction(ATransaction):
 		self.fail.set()
 		try:
 			# BLOCK, timeout
-			resp = request_lib.delete("{}/transactions/{}".format(self.service.url, str(self.remote_id)), headers={
-				"X-Transaction": self.key
-			}, timeout=self.parent.done_timeout)
-		except request_lib.RequestException:
+			resp: urllib3.HTTPResponse = self.service.session.request(
+				"DELETE", f"{self.service.url.path}/transactions/{self.remote_id}",
+				headers={
+					"X-Transaction": self.key
+				},
+				timeout=self.parent.done_timeout
+			)
+		except urllib3.exceptions.HTTPError:
 			pass  # auto rollback by timeout
 		debug_SSE.event({
 			"event": "rollback_child",
@@ -344,8 +405,12 @@ class ChildTransaction(ATransaction):
 
 	@g_async
 	def send_finish(self):
-		resp = request_lib.put("{}/transactions/{}".format(self.service.url, str(self.remote_id)), headers={
-			"X-Transaction": self.key
-		}, timeout=self.parent.done_timeout)
+		resp: urllib3.HTTPResponse = self.service.session.request(
+			"PUT", f"{self.service.url.path}/transactions/{self.remote_id}",
+			headers={
+				"X-Transaction": self.key
+			},
+			timeout=self.parent.done_timeout
+		)
 
 	# TODO: Check response?

@@ -3,6 +3,7 @@ from multiprocessing import Process
 from pathlib import Path
 from random import randint
 from unittest import TestCase
+from unittest import skip
 
 import gevent
 import gevent.monkey
@@ -21,7 +22,7 @@ ROOT_PATH = (Path(__file__) / ".." / "..").resolve().absolute()
 with open(str(ROOT_PATH / "unit" / "unit.global.json")) as f:
 	CONFIG = json.load(f)
 ENTRY_POINT = CONFIG["entry_point"]
-with open(str(ROOT_PATH / "unit" / "unit.global.json")) as f:
+with open(str(ROOT_PATH / "unit" / "status.schema")) as f:
 	STATUS_SCHEMA = json.load(f)
 
 
@@ -114,6 +115,7 @@ class GlobalTest(TestCase):
 		for p in self.services: p.terminate()
 		self.controller_api.terminate()
 		self.controller.terminate()
+		gevent.sleep(1)
 
 	def test_simple(self):
 		self.single_transaction(self.transaction, max_transaction_duration(self.config))
@@ -124,6 +126,10 @@ class GlobalTest(TestCase):
 	# @skip("")
 	def test_spam_2(self):
 		self.spam_transaction(100)
+
+	# @skip("")
+	def test_spam_3(self):
+		self.spam_transaction(1000)
 
 	def single_transaction(self, transaction, duration, wait_times=20):
 		rv = requests.post(ENTRY_POINT, json=transaction)
@@ -148,6 +154,8 @@ class GlobalTest(TestCase):
 			validate(status, STATUS_SCHEMA)
 			if status[_id]["global"] == "DONE":
 				break
+			if status[_id]["global"] == "FAIL":
+				self.fail("Transaction fail")
 			gevent.sleep(0.5)  # sum sleep wait_times * 0.5s
 		else:
 			self.fail("Transaction is executed too long")

@@ -1,3 +1,1 @@
-TODO: Выпилить done-timeout (сервисы и так ждут пинги от контроллера)
-TODO: сменить "response" в статусе на "service-response"
 TODO: перейти на asyncio

@@ -38,7 +38,26 @@
     ]
   },
   "test_spam_2": {
-    "count": 100,
+    "count": 40,
+    "global_timeout": 100000,
+    "service_local_timeout": [60000, 90000],
+    "services": [
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      },
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      },
+      {
+        "ping": [1, 2],
+        "work": [5, 10]
+      }
+    ]
+  },
+  "test_spam_3": {
+    "count": 1000,
     "global_timeout": 100000,
     "service_local_timeout": [60000, 90000],
     "services": [

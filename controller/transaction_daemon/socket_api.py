@@ -50,7 +50,7 @@ class Daemon(TcpServer):
 			trid = ObjectId(data['id'])
 			tr = self.transactions[trid]
 			if not isinstance(tr, Transaction):
-				return 404, {"ID": str(tr.id)}
+				return 404, {"ID": str(trid)}
 
 			tr_ch = tr.childes[data["key"]]
 			if data["done"]:

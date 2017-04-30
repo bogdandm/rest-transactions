@@ -16,7 +16,14 @@
       },
       "patternProperties": {
         "^Service": {
-          "type": "string"
+          "type": "object",
+          "properties": {
+            "service_response": {
+            },
+            "status": {
+              "type": "string"
+            }
+          }
         }
       },
       "required": ["global"]

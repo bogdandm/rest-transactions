@@ -28,7 +28,7 @@ def timeit(f):
 		res = f(*args, **kwargs)
 		end = time.time()
 		print("{:.4f} s".format(end - start))
-		return res
+		return res, end - start
 
 	return wrapper
 
@@ -269,7 +269,7 @@ class MultiDict(typing.MutableMapping[KT, VT]):
 		return self._key_val[key]
 
 	def get(self, key: KT, default: VT = None):
-		return self.__getitem__(key) if key in self._key_val else default
+		return self._key_val.get(key, default)
 
 	def __setitem__(self, key: KT, value: VT):
 		try:

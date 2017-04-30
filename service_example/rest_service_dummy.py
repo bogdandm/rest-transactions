@@ -25,10 +25,10 @@ class TransactionDummy(ATransaction):
 	ping_timeout = 5  # sec
 	result_timeout = 20  # sec
 
-	def __init__(self, callback_url: str, local_timeout: int, ping_timeout=None, result_timeout=None):
+	def __init__(self, callback_url: str, local_timeout: float, ping_timeout=None, result_timeout=None):
 		super().__init__(ObjectId())
 		self.callback_url = callback_url
-		self.local_timeout = local_timeout  # type: float
+		self.local_timeout = local_timeout
 		self.ping_timeout = ping_timeout if ping_timeout is not None else TransactionDummy.ping_timeout  # type: float
 		self.result_timeout = result_timeout if result_timeout is not None else TransactionDummy.result_timeout  # type: float
 
@@ -191,18 +191,21 @@ class Application(EmptyApp):
 		@json()
 		def any_route(any_resource):
 			debug_SSE.event({"event": "touch", "t": datetime.now(), "data": any_resource})  # DEBUG touch
-			key = request.headers["X-Transaction"]
-			tr = self.transactions.get(key)
-			if tr is None:
-				raise NotFound
-			tr.do_work(any_resource)
+			key = request.headers.get("X-Transaction")
+			if key:
+				tr = self.transactions.get(key)
+				if tr is None:
+					raise NotFound
+				tr.do_work(any_resource)
 
-			return {
-				"transaction": {
-					"key": key,
-					"status": tr.status
+				return {
+					"transaction": {
+						"key": key,
+						"status": tr.status
+					}
 				}
-			}
+			else:
+				return {"echo": any_resource}
 
 
 def main(args=None):
