@@ -77,11 +77,11 @@ def main(args=None):
 		_debug_thread = debug_SSE.spawn(("localhost", 9000))
 
 	Transaction.set_self_url("http://localhost:5000/api/alpha/transactions")  # TODO: Sent from REST Service
-	daemon = Daemon(("127.0.0.1", args.port), args.db)
+	daemon: Daemon = Daemon(("127.0.0.1", args.port), args.db)
 	if args.no_log:
 		daemon.logger.disabled = True
 
-	daemon.run()
+	daemon.serve_forever()
 
 
 if __name__ == '__main__':

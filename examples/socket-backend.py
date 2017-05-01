@@ -15,4 +15,4 @@ def random(data):
 	return 200, {"random": randint(0, 2 ** 20)}
 
 
-server.run()
+server.serve_forever()

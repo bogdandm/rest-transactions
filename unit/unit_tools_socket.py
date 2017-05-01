@@ -9,7 +9,7 @@ from tools import timeit
 from tools.gevent_ import g_async
 from tools.socket_ import Tcp404
 from tools.socket_.tcp_client import TcpClient, TcpClientThreading
-from tools.socket_.tcp_server import TcpServer
+from tools.socket_.tcp_server import TcpServer, GeventTcpServer, AServer
 
 
 class Server(TcpServer):
@@ -30,18 +30,37 @@ class Server(TcpServer):
 			self.db = {**self.db, **data}
 			return 200, self.db
 
+class GeventServer(GeventTcpServer):
+	def __init__(self, address: Tuple[str, int]):
+		super().__init__(address)
+		self.db = {chr(ord('a') + i): i for i in range(ord('z') - ord('a') + 1)}
+
+		@self.method
+		def get(data):
+			ch = data['ch']
+			if ch in self.db:
+				return 200, {"ch": ch, "ord": self.db[ch]}
+			else:
+				raise Tcp404(ch)
+
+		@self.method
+		def post(data):
+			self.db = {**self.db, **data}
+			return 200, self.db
+
 
 class SocketClientServerTest(TestCase):
-	server = None  # type: Server
-	thread = None  # type: gevent.Greenlet
-	client = None  # type: TcpClient
+	server: AServer = None
+	thread: gevent.Greenlet = None
+	client: TcpClient = None
+	server_class = Server
 	client_class = TcpClient
 	addr = 5123
 
 	@classmethod
-	def setUpClass(cls):
-		cls.server = Server(("127.0.0.1", cls.addr))
-		cls.thread = gevent.spawn(lambda: cls.server.run())
+	def setUpClass(cls: 'SocketClientServerTest'):
+		cls.server = cls.server_class(("127.0.0.1", cls.addr))
+		cls.thread = gevent.spawn(cls.server.serve_forever)
 		cls.client = cls.client_class(("127.0.0.1", cls.addr))
 
 	@classmethod
@@ -113,3 +132,9 @@ class SocketClientServerTest(TestCase):
 class SocketClientServerTestThreading(SocketClientServerTest):
 	client_class = TcpClientThreading
 	addr = 5124
+
+
+class SocketClientServerTestThreadingGevent(SocketClientServerTest):
+	client_class = TcpClientThreading
+	server_class = GeventServer
+	addr = 5125
