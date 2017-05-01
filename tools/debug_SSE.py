@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from functools import partial
 from typing import Tuple
 
 import gevent
@@ -89,6 +88,7 @@ def event(a):
 
 
 if __name__ == '__main__':
+	from functools import partial
 	port = int(input("port: "))
 	th = spawn(("localhost", port))
 	for s in iter(partial(input, "> "), ""):
