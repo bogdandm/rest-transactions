@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from functools import partial
 from typing import Tuple
 
 import gevent
@@ -90,8 +91,6 @@ def event(a):
 if __name__ == '__main__':
 	port = int(input("port: "))
 	th = spawn(("localhost", port))
-	s = "init"
-	while s:
-		s = input("> ")
+	for s in iter(partial(input, "> "), ""):
 		_queue.put({"event": "msg", "t": datetime.now(), "data": s})
 	print("exit")
