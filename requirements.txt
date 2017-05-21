@@ -1,9 +1,9 @@
 click
+colorama
 decorator
 elizabeth
 Flask
 gevent
-gevent-websocket
 greenlet
 grequests
 itsdangerous
@@ -14,12 +14,15 @@ MarkupSafe
 msgpack-python
 ply
 progressbar-latest
+psutil
 pyasn1
 pymongo
+pytest
 requests
 rsa
 six
 tqdm
+urllib3
 uwsgi-cache
 virtualenv
 Werkzeug
