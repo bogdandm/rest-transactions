@@ -9,7 +9,7 @@ from werkzeug.wsgi import DispatcherMiddleware
 
 from tools import transform_json_types
 from tools.exceptions import catalog, AException
-from tools.flask_.decorators import json
+from tools.flask.decorators import json
 
 
 def register_errors(

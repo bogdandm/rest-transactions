@@ -9,7 +9,7 @@ from gevent import spawn
 from gevent.event import Event
 from gevent.server import StreamServer
 
-from tools.socket_ import receive, Tcp500, Tcp404, Request, Response, ATcpException
+from tools.socket import receive, Tcp500, Tcp404, Request, Response, ATcpException
 
 HandlerType = Callable[[dict], Tuple[Union[str, int], Any]]
 

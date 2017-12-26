@@ -6,10 +6,10 @@ from unittest import TestCase
 import gevent
 
 from tools import timeit
-from tools.gevent_ import g_async
-from tools.socket_ import Tcp404
-from tools.socket_.tcp_client import TcpClient, TcpClientThreading
-from tools.socket_.tcp_server import TcpServer, GeventTcpServer, AServer
+from tools.gevent import g_async
+from tools.socket import Tcp404
+from tools.socket.tcp_client import TcpClient, TcpClientThreading
+from tools.socket.tcp_server import TcpServer, GeventTcpServer, AServer
 
 
 class Server(TcpServer):

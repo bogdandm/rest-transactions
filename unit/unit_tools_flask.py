@@ -3,8 +3,8 @@ from unittest import TestCase
 
 from flask.testing import FlaskClient
 
-from tools.flask_ import EmptyApp
-from tools.flask_.decorators import *
+from tools.flask import EmptyApp
+from tools.flask.decorators import *
 
 schema = {
 	"$schema": "http://json-schema.org/draft-04/schema#",

@@ -4,9 +4,9 @@ from typing import Tuple
 import gevent
 
 from tools import timeit
-from tools.gevent_ import g_async
-from tools.socket_.tcp_client import TcpClient
-from tools.socket_.tcp_server import TcpServer, GeventTcpServer
+from tools.gevent import g_async
+from tools.socket.tcp_client import TcpClient
+from tools.socket.tcp_server import TcpServer, GeventTcpServer
 
 address = ('localhost', 5000)
 n_connetions = 100

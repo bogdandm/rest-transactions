@@ -3,8 +3,8 @@ from random import randint
 from bson import ObjectId
 
 from tools.exceptions import UnknownException
-from tools.flask_ import EmptyApp
-from tools.flask_.decorators import json, validate, nocache
+from tools.flask import EmptyApp
+from tools.flask.decorators import json, validate, nocache
 
 
 def main(port=5000):

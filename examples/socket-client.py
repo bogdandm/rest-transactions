@@ -3,8 +3,8 @@ from random import choice
 import gevent
 
 from tools import timeit
-from tools.gevent_ import g_async
-from tools.socket_.tcp_client import TcpClient
+from tools.gevent import g_async
+from tools.socket.tcp_client import TcpClient
 
 n_sockets = 500
 n_repeats = 200

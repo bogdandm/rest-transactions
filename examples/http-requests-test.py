@@ -5,7 +5,7 @@ import requests
 import urllib3
 
 from tools import timeit
-from tools.gevent_ import g_async
+from tools.gevent import g_async
 
 N = 100
 M = 100

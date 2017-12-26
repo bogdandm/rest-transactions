@@ -4,9 +4,9 @@ from typing import Dict, Any
 from gevent.wsgi import WSGIServer
 from werkzeug.exceptions import NotFound, BadRequest
 
-from tools.flask_ import EmptyApp
-from tools.flask_.decorators import validate, json
-from tools.socket_.tcp_client import TcpClientThreading
+from tools.flask import EmptyApp
+from tools.flask.decorators import validate, json
+from tools.socket.tcp_client import TcpClientThreading
 
 
 class ControllerRestService(EmptyApp):

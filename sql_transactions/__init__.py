@@ -3,7 +3,7 @@ from typing import List, Set, Callable, Any, Dict, Iterable, Union, Tuple
 
 from gevent.event import AsyncResult
 
-from tools.gevent_ import g_async
+from tools.gevent import g_async
 
 SqlResult = Dict[str, Any]
 VarsFnType = Callable[

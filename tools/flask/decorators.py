@@ -8,7 +8,7 @@ from jsonschema import ValidationError
 from jsonschema import validate as validjson
 
 import tools.exceptions
-import tools.flask_
+import tools.flask
 from tools import dfilter
 
 
@@ -46,7 +46,7 @@ def validate(schema: dict = None):
 
 	def decorator(f: Callable[[], Any]):
 		def wrapper(*args, **kwargs):
-			data = tools.flask_.request_data(request)
+			data = tools.flask.request_data(request)
 			if schema:
 				try:
 					validjson(data, schema)
@@ -96,7 +96,7 @@ def json(id_field=None, hide_id=False, add_uri=True):
 					if hide_id:
 						data = dfilter(data, id_field, reverse=True)
 				data["uri"] = uri
-			return tools.flask_.jsonify(status, data, True)
+			return tools.flask.jsonify(status, data, True)
 
 		wrapper.__name__ = f.__name__
 		return wrapper

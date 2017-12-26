@@ -8,8 +8,8 @@ from gevent.pywsgi import WSGIServer
 from gevent.queue import Queue
 
 from tools import transform_json_types
-from tools.flask_.decorators import crossdomain
-from tools.gevent_ import g_async
+from tools.flask.decorators import crossdomain
+from tools.gevent import g_async
 
 
 # TODO: docs

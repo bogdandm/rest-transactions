@@ -15,9 +15,9 @@ from gevent.pywsgi import WSGIServer
 from werkzeug.exceptions import NotFound
 
 from tools import debug_SSE, MultiDict
-from tools.flask_ import EmptyApp
-from tools.flask_.decorators import validate, json
-from tools.gevent_ import g_async
+from tools.flask import EmptyApp
+from tools.flask.decorators import validate, json
+from tools.gevent import g_async
 from tools.transactions import ATransaction
 
 

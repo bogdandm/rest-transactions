@@ -11,7 +11,7 @@ from gevent import Greenlet, wait, sleep
 from gevent.event import Event
 
 from tools import debug_SSE
-from tools.gevent_ import g_async
+from tools.gevent import g_async
 from tools.transactions import ATransaction
 from . import SqlResult, SqlChain
 

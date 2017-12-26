@@ -1,4 +1,4 @@
-from tools.socket_.tcp_server import TcpServer
+from tools.socket.tcp_server import TcpServer
 from random import randint
 
 server = TcpServer(("127.0.0.1", 5000))

@@ -3,16 +3,22 @@ import json
 import logging
 import numbers
 import time
-import typing
 from base64 import b64encode, b64decode
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, Union, Any, Iterator, List, Tuple, Callable, Set, Dict
+from typing import (Any, Union, TypeVar, Set, Dict, Tuple, Iterable, Generator, Sequence, MutableMapping, Callable)
 
 from bson import ObjectId
 
-KT = typing.TypeVar('KT')
-VT = typing.TypeVar('VT')
+KT = TypeVar('KT')
+VT = TypeVar('VT')
+
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 
 
 def timeit(f):
@@ -83,7 +89,7 @@ def drename(d: dict, keys: dict, filter_=False):
     return res
 
 
-def group(d: dict, *groups: List[str], delimiter="_"):
+def group(d: dict, *groups: str, delimiter="_"):
     """
     Replace dict items which are startwith any item from group. Create new dict
 
@@ -124,7 +130,7 @@ def get_i(iterable: Iterable, i: int):
         yield item[i]
 
 
-def get_from_first(key, *getters, default=None) -> Any:
+def get_from_first(key: Any, *getters: Sequence, default: Any = None) -> Any:
     """
     Return first key => value from getters (see example)
 
@@ -133,16 +139,19 @@ def get_from_first(key, *getters, default=None) -> Any:
 
     :param key:
     :param getters:
+    :param default:
     :return:
     """
     for item in getters:
-        if item and (isinstance(item, dict) and key in item
-                     or isinstance(key, numbers.Number) and hasattr(item, "__len__") and 0 <= key < len(item)):
+        if item and (
+                isinstance(item, dict) and key in item
+                or isinstance(key, numbers.Integral) and hasattr(item, "__len__") and 0 <= int(key) < len(item)
+        ):
             return item[key]
     return default
 
 
-def rvg(g: Iterator):
+def rvg(g: Generator):
     # noinspection PyUnreachableCode
     """
     Get return value from generator
@@ -182,7 +191,7 @@ _transform = {
 _transform_types = {}
 _load_types()
 
-T = typing.TypeVar('T')
+T = TypeVar('T')
 
 
 def register_type(type_, serializer_deserializer: Tuple[Callable[[T], str], Callable[[str], T]]):
@@ -238,7 +247,7 @@ def transform_json_types(data: Union[dict, list], direction=0):
 null = object()
 
 
-class MultiDict(typing.MutableMapping[KT, VT]):
+class MultiDict(MutableMapping[KT, VT]):
     # TODO: docs
     def __init__(self, init_dict: Dict[KT, VT] = None):
         self._key_val = dict()  # type: Dict[KT, VT]
@@ -305,21 +314,21 @@ class MultiDict(typing.MutableMapping[KT, VT]):
     def __len__(self) -> int:
         return self._val_id.__len__()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[KT]:
         for val, _id in self._val_id.items():
             keys = self._id_keys[_id]
             yield keys
 
-    def __contains__(self, item):
+    def __contains__(self, item: VT) -> bool:
         return item in self._key_val
 
-    def keys(self):
+    def keys(self) -> Iterable[KT]:
         return collections.KeysView(self)
 
-    def values(self):
+    def values(self) -> Iterable[VT]:
         return self._val_id.keys()
 
-    def items(self):
+    def items(self) -> Iterable[Tuple[KT, VT]]:
         for keys in self.keys():
             k = next(iter(keys))
             yield keys, self._key_val[k]
@@ -376,10 +385,3 @@ class EnumEncoder(json.JSONEncoder):
         if isinstance(obj, Enum):
             return obj.name
         return json.JSONEncoder.default(self, obj)
-
-
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d

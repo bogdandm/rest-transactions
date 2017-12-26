@@ -6,7 +6,7 @@ from re import match
 from typing import Tuple, Union
 
 from tools import transform_json_types
-from tools.flask_ import dejsonify
+from tools.flask import dejsonify
 
 
 def receive(socket_obj: socket.SocketType, block=1024) -> bytes:

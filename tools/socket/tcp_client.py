@@ -5,7 +5,7 @@ from typing import Tuple, Optional, Union
 from gevent import monkey
 from gevent.hub import ConcurrentObjectUseError
 
-from tools.socket_ import receive, Request, Response
+from tools.socket import receive, Request, Response
 
 monkey.patch_all()
 

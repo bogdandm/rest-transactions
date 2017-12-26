@@ -14,7 +14,7 @@ from gevent import wait
 
 from tools import debug_SSE, Singleton, MultiDict, dict_factory
 from tools import transform_json_types
-from tools.gevent_ import g_async, Wait
+from tools.gevent import g_async, Wait
 from tools.transactions import ATransaction
 
 _path = (Path(__file__) / "..").absolute().resolve()
