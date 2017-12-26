@@ -1,12 +1,15 @@
 import sqlite3
-from typing import List, Set, Callable, Any, Dict, Iterable, Union
+from typing import List, Set, Callable, Any, Dict, Iterable, Union, Tuple
 
 from gevent.event import AsyncResult
 
 from tools.gevent_ import g_async
 
 SqlResult = Dict[str, Any]
-VarsFnType = Callable[[SqlResult, ], Union[Iterable, Dict[str, Any]]]
+VarsFnType = Callable[
+    [Tuple[SqlResult, ...]],
+    Union[Iterable, Dict[str, Any]]
+]
 
 
 class SqlChain(AsyncResult):
@@ -42,8 +45,8 @@ class SqlChain(AsyncResult):
             self.set(e)
         return result
 
-    def chain(self, sql: str, vars_fn: VarsFnType = None):
-        new_node = self.__class__(sql=sql, parent=self, vars_fn=vars_fn)
+    def chain(self, sql: str, *args, vars_fn: VarsFnType = None, **kwargs) -> 'SqlChain':
+        new_node = self.__class__(sql=sql, parent=self, *args, **{"vars_fn": vars_fn, **kwargs})
         self.child.add(new_node)
         self.root._nodes.add(new_node)
         return new_node

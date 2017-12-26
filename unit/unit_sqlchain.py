@@ -31,7 +31,9 @@ class SqlChainTest(TestCase):
         query2 = query1.chain("SELECT * FROM albums WHERE ArtistId=:id;",
                               vars_fn=lambda artist, *other: {"id": artist["ArtistId"]})
         query1.execute()
-        print(query2.get())
+        result = query2.get()
+        print(result)
+        self.assertEqual(result[0]["Title"], 'Core')
 
     def test_long_chain(self):
         sql = "SELECT * FROM artists;"
@@ -50,8 +52,8 @@ class SqlChainTest(TestCase):
         root = SqlChain(sql, cursor=self.cursor)
         ptr = root
         stop = 50
-        for i in range(100):
-            ptr = ptr.chain(sql if i != stop - 1 else "SELECT * FROM DoesNotExists", vars_fn=counter)
+        for i in range(1, 100 + 1):
+            ptr = ptr.chain(sql if i != stop else "SELECT * FROM DoesNotExists", vars_fn=counter)
         root.execute()
         result = ptr.get()
         print(result)
