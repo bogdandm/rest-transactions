@@ -12,19 +12,12 @@ from gevent import joinall
 from gevent import sleep
 from gevent import wait
 
-from tools import debug_SSE, Singleton, MultiDict
+from tools import debug_SSE, Singleton, MultiDict, dict_factory
 from tools import transform_json_types
 from tools.gevent_ import g_async, Wait
 from tools.transactions import ATransaction
 
 _path = (Path(__file__) / "..").absolute().resolve()
-
-
-def dict_factory(cursor, row):
-	d = {}
-	for idx, col in enumerate(cursor.description):
-		d[col[0]] = row[idx]
-	return d
 
 
 class HTTPConnectionPoolWithLock(urllib3.HTTPConnectionPool):
@@ -159,7 +152,7 @@ class Transaction(ATransaction):
 			"global": super().status.name,
 			**{ch.id: {
 				"status": ch.status.name,
-				"service_response": ch.response.value
+				"service_response": ch.result.value
 			} for ch in self.childes.values()}
 		}
 
@@ -197,7 +190,7 @@ class Transaction(ATransaction):
 				joinall([ch.send_finish() for ch in self.childes.values()])
 			else:
 				self.fail.set()
-			self.tear_down()
+			self.clean()
 
 	@g_async
 	def wait_fail(self):
@@ -214,7 +207,7 @@ class Transaction(ATransaction):
 		if self.done.ready(): return
 		self.main_thread.kill()
 		self.do_rollback("global timeout" if len(e) == 0 else None)
-		self.tear_down()
+		self.clean()
 
 	def do_rollback(self, reason=None):
 		debug_SSE.event({"event": "fail", "t": datetime.now(), "data": reason})  # DEBUG fail
@@ -222,10 +215,9 @@ class Transaction(ATransaction):
 		debug_SSE.event({"event": "rollback", "t": datetime.now()})  # DEBUG rollback
 
 	@g_async
-	def tear_down(self):
-		self.main_thread.kill()
+	def clean(self):
+		super(Transaction, self).clean()
 		self.global_timeout_thread.kill()
-		self.threads.kill()
 		for ch in self.childes.values():
 			url = ch.service.url
 			TransactionManager.instance.disconnect(url.hostname, url.port)
@@ -349,9 +341,9 @@ class ChildTransaction(ATransaction):
 			self.fail.set()  # EMIT(fail)
 			return
 
-		wait((self.response, self.fail), count=1, timeout=self.service.timeout)  # BLOCK, timeout
-		if self.response.successful():
-			js = self.response.get()
+		wait((self.result, self.fail), count=1, timeout=self.service.timeout)  # BLOCK, timeout
+		if self.result.successful():
+			js = self.result.get()
 			debug_SSE.event({
 				"event": "ready_commit_child", "t": datetime.now(),
 				"data": {"chid": self.id, **js}

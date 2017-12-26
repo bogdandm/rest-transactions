@@ -42,7 +42,7 @@ class Daemon(TcpServer):
 			if not isinstance(tr, Transaction):
 				return 404, {"ID": str(tr.id)}
 
-			tr.childes[data["key"]].response.set(data["response"])
+			tr.childes[data["key"]].result.set(data["response"])
 			return 200, {"ID": str(tr.id)}
 
 		@self.method
