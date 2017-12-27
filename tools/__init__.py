@@ -13,6 +13,8 @@ from bson import ObjectId
 KT = TypeVar('KT')
 VT = TypeVar('VT')
 
+Seconds = float
+
 
 def dict_factory(cursor, row):
     d = {}

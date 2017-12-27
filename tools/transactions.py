@@ -68,6 +68,9 @@ class ATransaction(metaclass=ABCMeta):
     def do_rollback(self):
         pass
 
+    def get_result(self):
+        return self.result.get()
+
     def __hash__(self):
         return hash(self.id)
 
