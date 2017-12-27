@@ -27,3 +27,4 @@ uwsgi-cache
 virtualenv
 Werkzeug
 ws4py
+pyodbc

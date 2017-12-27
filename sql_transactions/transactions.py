@@ -1,9 +1,9 @@
-import sqlite3
+import pyodbc
 import time
 from datetime import datetime
+from functools import partial
 from hashlib import sha256
 from random import randint
-from sqlite3 import Connection
 from typing import List, Set, Callable, Any, Dict, Iterable, Union, Tuple
 
 import requests
@@ -12,7 +12,7 @@ from gevent import Greenlet, wait, sleep
 from gevent.event import AsyncResult
 from gevent.event import Event
 
-from tools import debug_SSE, Seconds
+from tools import debug_SSE, Seconds, dict_factory
 from tools.gevent import g_async
 from tools.transactions import ATransaction
 
@@ -27,7 +27,7 @@ class SqlChain(AsyncResult):
     ]
 
     def __init__(self, sql: str, vars: List = None, vars_fn: VarsFnType = None,
-                 cursor: sqlite3.Cursor = None, parent: 'SqlChain' = None):
+                 cursor: pyodbc.Cursor = None, parent: 'SqlChain' = None):
         super().__init__()
         self.sql = sql
         self.vars = vars
@@ -47,11 +47,14 @@ class SqlChain(AsyncResult):
         args = self.vars or (self.vars_fn(*parent_result) if self.vars_fn else ())
         try:
             self.cursor.execute(self.sql, args)
-            result: Iterable[SqlResult] = self.cursor.fetchall()
+            try:
+                result: Iterable[SqlResult] = [dict_factory(self.cursor, row) for row in self.cursor]
+            except pyodbc.ProgrammingError:
+                result = []
             self.set(result)
             for ch in self.child:
                 ch.execute(result)  # THREAD:1
-        except sqlite3.Error as e:
+        except pyodbc.Error as e:
             result = e
             for node in self.root._nodes:
                 node.set(e)
@@ -63,6 +66,14 @@ class SqlChain(AsyncResult):
         self.child.add(new_node)
         self.root._nodes.add(new_node)
         return new_node
+
+    def close(self):
+        self.cursor.close()
+        for ch in self._nodes:
+            try:
+                ch.cursor.close()
+            except pyodbc.ProgrammingError:
+                continue
 
 
 class RestTransactionMixin(ATransaction):
@@ -132,9 +143,10 @@ class RestTransactionMixin(ATransaction):
 
 
 class SqlTransaction(ATransaction):
-    ResultProcessorType = Callable[['SqlTransaction', Iterable[SqlResult], ], Union[str, int, float, dict, list, tuple]]
+    ResultProcessorType = Callable[
+        ['SqlTransaction', Tuple[Iterable[SqlResult], ...]], Union[str, int, float, dict, list, tuple]]
 
-    def __init__(self, connection: Connection, result_processor: ResultProcessorType):
+    def __init__(self, connection: pyodbc.Connection, result_processor: ResultProcessorType):
         super().__init__(ObjectId())
         self.connection = connection
         self.result_processor = result_processor
@@ -164,16 +176,21 @@ class SqlTransaction(ATransaction):
     @g_async
     def do_commit(self):
         self.connection.commit()
+        for ch in self.chains:
+            ch.close()
         self.commit.set()  # EMIT(commit)
 
     @g_async
     def do_rollback(self):
         self.connection.rollback()
+        for ch in self.chains:
+            ch.close()
         self.fail.set()  # EMIT(fail)
 
 
 class RestSqlTransaction(RestTransactionMixin, SqlTransaction):
-    def __init__(self, connection: Connection, result_processor: SqlTransaction.ResultProcessorType, callback_url: str,
+    def __init__(self, connection: pyodbc.Connection, result_processor: SqlTransaction.ResultProcessorType,
+                 callback_url: str,
                  ping_timeout: Seconds, local_timeout: Seconds):
         RestTransactionMixin.__init__(
             self,
@@ -183,3 +200,38 @@ class RestSqlTransaction(RestTransactionMixin, SqlTransaction):
             local_timeout=local_timeout
         )
         SqlTransaction.__init__(self, connection, result_processor)
+
+
+class RouteWrapperTransaction(ATransaction):
+    def __init__(self, connection: pyodbc.Connection):
+        super().__init__(ObjectId())
+        self.connection = connection
+
+    def wrap(self, route: Callable, *args, **kwargs):
+        self.route = partial(route, *args, connection=self.connection, **kwargs)
+
+    @g_async
+    def _spawn(self):
+        self.result.set(self.route)
+
+    @g_async
+    def do_commit(self):
+        self.connection.commit()
+        self.commit.set()  # EMIT(commit)
+
+    @g_async
+    def do_rollback(self):
+        self.connection.rollback()
+        self.fail.set()  # EMIT(fail)
+
+
+class RestRouteWrapperTransaction(RestTransactionMixin, RouteWrapperTransaction):
+    def __init__(self, connection: pyodbc.Connection, callback_url: str, ping_timeout: Seconds, local_timeout: Seconds):
+        RestTransactionMixin.__init__(
+            self,
+            _id=None,
+            callback_url=callback_url,
+            ping_timeout=ping_timeout,
+            local_timeout=local_timeout
+        )
+        RouteWrapperTransaction.__init__(self, connection)

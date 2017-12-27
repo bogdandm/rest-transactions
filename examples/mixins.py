@@ -26,7 +26,7 @@ class Mixin(Abstract):
         self.key = self.id.upper()
 
     def foo(self):
-        return super(Mixin, self).foo() + self.key
+        return super().foo() + self.key
 
 
 class AMix(Mixin, A):

@@ -5,7 +5,7 @@ from typing import Dict
 from flask import request
 from werkzeug.exceptions import NotFound
 
-from sql_transactions.transactions import RestTransaction
+from sql_transactions.transactions import RestRouteWrapperTransaction
 from tools import debug_SSE, MultiDict
 from tools.flask import EmptyApp
 from tools.flask.decorators import validate, json
@@ -14,13 +14,21 @@ from tools.flask.decorators import validate, json
 class TransactionApp(EmptyApp):
     def __init__(self, root_path, app_root, debug=True):
         super().__init__(root_path, app_root, extended_errors=debug, debug=debug)
-        self.transactions: Dict[Any, RestTransaction] = MultiDict()
+        self.transactions: Dict[Any, RestRouteWrapperTransaction] = MultiDict()
 
         @self.route("/transactions", methods=["POST"])
         @validate(self.schemas["transaction_post"])
         @json(id_field="_id")
         def transaction_post(data):
-            pass
+            tr = RestRouteWrapperTransaction(data["callback-url"], data["timeout"] / 1000)
+            tr.run()  # THREAD:root
+            self.transactions[str(tr.id)] = tr
+            self.transactions[tr.key] = tr
+            return {
+                "_id": str(tr.id),
+                "transaction-key": tr.key,
+                "ping-timeout": tr.ping_timeout * 1000
+            }
 
         @self.route("/transactions/<trid>", methods=["GET"])
         @json()
@@ -70,14 +78,22 @@ class TransactionApp(EmptyApp):
     def transaction(self) -> Optional[RestTransaction]:
         return self.transactions.get(request.headers.get("X-Transaction", None), None)
 
+    @property
+    def transaction_response(self) -> dict:
+        tr = self.transaction
+        return {
+            "transaction": {
+                "key": tr.key,
+                "status": tr.status
+            }
+        } if tr else {}
+
     def transaction_supported(self, fn: Callable):
+        # TODO
         def wrapper(self, *args, **kwargs):
             transaction = self.transaction
             if not transaction:
                 return fn(self, *args, **kwargs)
-
-
-
 
         wrapper.__name__ = fn.__name__
         return wrapper
