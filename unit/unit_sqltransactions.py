@@ -8,6 +8,7 @@ from sql_transactions import CONNECTIONS
 from sql_transactions.transactions import SqlChain, SqlTransaction, SqlResult
 from tools import dict_factory
 
+
 class Counter:
     def __init__(self):
         self.count = 1

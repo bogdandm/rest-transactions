@@ -1,5 +1,3 @@
-from random import choice
-
 import gevent
 
 from tools import timeit
@@ -12,15 +10,15 @@ n_repeats = 200
 
 @g_async
 def spawn():
-	client = TcpClient(("127.0.0.1", 5000))
-	for _ in range(n_repeats):
-		client.call("random")
-	client.close()
+    client = TcpClient(("127.0.0.1", 5000))
+    for _ in range(n_repeats):
+        client.call("random")
+    client.close()
 
 
 @timeit
 def run():
-	gevent.joinall([spawn() for _ in range(n_sockets)])
+    gevent.joinall([spawn() for _ in range(n_sockets)])
 
 
 run()
