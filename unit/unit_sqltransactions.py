@@ -1,8 +1,11 @@
 import pyodbc
-from typing import Iterable
+from functools import partial
+from random import randint
+from typing import Iterable, Callable, Dict, Any
 from unittest import TestCase
 
 from gevent import wait
+from mimesis import Personal
 
 from sql_transactions import CONNECTIONS
 from sql_transactions.transactions import SqlChain, SqlTransaction, SqlResult
@@ -18,29 +21,71 @@ class Counter:
         return ()
 
 
-class SqlChainTest(TestCase):
+class DbSetUp(TestCase):
+    PERSONS_COUNT = 1000
+    PERSON_MIN_MONEY = 1000
+
+    @classmethod
+    def setUpClass(cls: 'DbSetUp'):
+        connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM person;")
+            count = cursor.fetchone()[0]
+        if count < cls.PERSONS_COUNT:
+            person = Personal('en')
+            with connection.cursor() as cursor:
+                cursor.executemany(
+                    """INSERT INTO person(name, surname, age, email) VALUES (?, ?, ?, ?)""",
+                    [(person.name(), person.surname(), person.age(), person.email())
+                     for _ in range(cls.PERSONS_COUNT - count)]
+                )
+                cursor.commit()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM person_money")
+            factory: Callable[[tuple], Dict[str, Any]] = partial(dict_factory, cursor)
+        insert = []
+        update = []
+        for person in map(factory, cursor.fetchall()):
+            diff = cls.PERSON_MIN_MONEY - person['money']
+            while diff > 0:
+                add = randint(50, diff + cls.PERSON_MIN_MONEY // 2)
+                new_account = bool(randint(0, 1)) or person['money'] == 0
+                if new_account:
+                    insert.append((person['id'], add))
+                else:
+                    update.append((add, person['id']))
+                diff -= add
+        with connection.cursor() as cursor:
+            if insert: cursor.executemany("""INSERT INTO bank_account(person, size) VALUES (?, ?)""", insert)
+            if update: cursor.executemany("""UPDATE bank_account SET size = size + ? WHERE person = ? LIMIT 1""",
+                                          update)
+            cursor.commit()
+
+
+class SqlChainTest(DbSetUp):
     def setUp(self):
-        self.connection = pyodbc.connect(CONNECTIONS.POSTGRE("test"))
+        self.connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
         self.cursor = self.connection.cursor()
 
     def test_one_query(self):
-        query = SqlChain("SELECT * FROM artists", cursor=self.cursor)
+        query = SqlChain("SELECT * FROM person", cursor=self.cursor)
         query.execute()
         result = query.get()
         print(result)
-        self.assertEqual(275, len(result))
+        self.assertEqual(self.PERSONS_COUNT, len(result))
 
     def test_chain(self):
-        query1 = SqlChain("""SELECT * FROM artists WHERE Name ILIKE '%stone%' LIMIT 1""", cursor=self.cursor)
-        query2 = query1.chain("SELECT * FROM albums WHERE ArtistId=?;",
-                              vars_fn=lambda artist, *other: (artist["artistid"],))
+        query1 = SqlChain("""SELECT * FROM person_money WHERE money = (SELECT MAX(money) FROM person_money) LIMIT 1;""",
+                          cursor=self.cursor)
+        query2 = query1.chain("SELECT SUM(size) AS money FROM bank_account WHERE person=?;",
+                              vars_fn=lambda person, *other: (person["id"],))
         query1.execute()
         result = query2.get()
         print(result)
-        self.assertEqual(result[0]["title"], 'Core')
+        self.assertGreater(result[0]["money"], 1000)
 
     def test_long_chain(self):
-        sql = "SELECT * FROM artists;"
+        sql = "SELECT * FROM person;"
         root = SqlChain(sql, cursor=self.cursor)
         ptr = root
         for i in range(100):
@@ -48,11 +93,11 @@ class SqlChainTest(TestCase):
         root.execute()
         result = ptr.get()
         print(result)
-        self.assertEqual(275, len(result))
+        self.assertEqual(self.PERSONS_COUNT, len(result))
 
     def test_long_chain_with_error_in_middle(self):
         counter = Counter()
-        sql = "SELECT * FROM artists;"
+        sql = "SELECT * FROM person;"
         root = SqlChain(sql, cursor=self.cursor)
         ptr = root
         stop = 50
@@ -67,8 +112,8 @@ class SqlChainTest(TestCase):
 
 class SqlTransactionTest(TestCase):
     def setUp(self):
-        self.connection: pyodbc.Connection = pyodbc.connect(CONNECTIONS.POSTGRE("test"))
-        self.connection2: pyodbc.Connection = pyodbc.connect(CONNECTIONS.POSTGRE("test"))
+        self.connection: pyodbc.Connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
+        self.connection2: pyodbc.Connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
 
         cur = self.cursor
         cur.execute("DELETE FROM test;")
@@ -84,12 +129,10 @@ class SqlTransactionTest(TestCase):
         return self.connection.cursor()
 
     def test_commit(self):
-        cursor = self.cursor
-        cursor.execute("SELECT COUNT(*) AS c FROM test;")
-        row: dict = dict_factory(cursor, cursor.fetchone())
-        self.assertFalse(row["c"])
-        cursor.close()
-        del cursor
+        with self.cursor as cursor:
+            cursor.execute("SELECT COUNT(*) AS c FROM test;")
+            row: dict = dict_factory(cursor, cursor.fetchone())
+            self.assertFalse(row["c"])
 
         def result_processor(transaction: SqlTransaction, *results: Iterable[SqlResult]):
             return results
@@ -103,27 +146,23 @@ class SqlTransactionTest(TestCase):
         res = transaction.get_result()
         self.assertEqual(len(res[0]), 2)
 
-        cursor = self.connection2.cursor()
-        cursor.execute("""SELECT * FROM test;""")
-        self.assertEqual(len(cursor.fetchall()), 0)
-        cursor.close()
-        del cursor
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            self.assertEqual(len(cursor.fetchall()), 0)
 
         transaction.do_commit()
         wait((transaction.commit,))
 
-        cursor = self.connection2.cursor()
-        cursor.execute("""SELECT * FROM test;""")
-        self.assertEqual(len(cursor.fetchall()), 2)
-        cursor.close()
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            count = len(cursor.fetchall())
+            self.assertEqual(count, 2)
 
     def test_rollback(self):
-        cursor = self.cursor
-        cursor.execute("SELECT COUNT(*) AS c FROM test;")
-        row: dict = dict_factory(cursor, cursor.fetchone())
-        self.assertFalse(row["c"])
-        cursor.close()
-        del cursor
+        with self.cursor as cursor:
+            cursor.execute("SELECT COUNT(*) AS c FROM test;")
+            row: dict = dict_factory(cursor, cursor.fetchone())
+            self.assertFalse(row["c"])
 
         def result_processor(transaction: SqlTransaction, *results: Iterable[SqlResult]):
             return results
@@ -137,17 +176,13 @@ class SqlTransactionTest(TestCase):
         res = transaction.get_result()
         self.assertEqual(len(res[0]), 2)
 
-        cursor = self.connection2.cursor()
-        cursor.execute("""SELECT * FROM test;""")
-        self.assertEqual(len(cursor.fetchall()), 0)
-        cursor.close()
-        del cursor
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            self.assertEqual(len(cursor.fetchall()), 0)
 
         transaction.do_rollback()
         wait((transaction.fail,))
 
-        cursor = self.connection2.cursor()
-        cursor.execute("""SELECT * FROM test;""")
-        self.assertEqual(len(cursor.fetchall()), 0)
-        cursor.close()
-        del cursor
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            self.assertEqual(len(cursor.fetchall()), 0)

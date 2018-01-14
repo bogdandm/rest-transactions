@@ -8,6 +8,7 @@ from datetime import datetime
 from enum import Enum
 from typing import (Any, Union, TypeVar, Set, Dict, Tuple, Iterable, Generator, Sequence, MutableMapping, Callable)
 
+import pyodbc
 from bson import ObjectId
 
 KT = TypeVar('KT')
@@ -16,11 +17,8 @@ VT = TypeVar('VT')
 Seconds = float
 
 
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+def dict_factory(cursor: pyodbc.Cursor, row: tuple) -> Dict[str, Any]:
+    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
 
 def timeit(f):
