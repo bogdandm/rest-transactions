@@ -21,6 +21,7 @@ ROOT_PATH = (Path(__file__) / ".." / "..").resolve().absolute()
 with open(str(ROOT_PATH / "unit" / "unit.global.json")) as f:
     CONFIG = json.load(f)
 ENTRY_POINT = CONFIG["entry_point"]
+
 with open(str(ROOT_PATH / "unit" / "status.schema")) as f:
     STATUS_SCHEMA = json.load(f)
 

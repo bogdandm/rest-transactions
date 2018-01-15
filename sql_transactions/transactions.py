@@ -8,7 +8,7 @@ from typing import List, Set, Callable, Any, Dict, Iterable, Union, Tuple
 
 import requests
 from bson import ObjectId
-from gevent import Greenlet, wait, sleep
+from gevent import Greenlet, wait, sleep, spawn
 from gevent.event import AsyncResult
 from gevent.event import Event
 
@@ -36,7 +36,7 @@ class SqlChain(AsyncResult):
 
         self.child: Set[SqlChain] = set()
         self.root = parent.root if parent else self
-        self._nodes = {self} if self.is_root else None
+        self.nodes = {self} if self.is_root else None
 
     @property
     def is_root(self):
@@ -56,7 +56,7 @@ class SqlChain(AsyncResult):
                 ch.execute(result)  # THREAD:1
         except pyodbc.Error as e:
             result = e
-            for node in self.root._nodes:
+            for node in self.root.nodes:
                 node.set(e)
             self.set(e)
         return result
@@ -64,12 +64,12 @@ class SqlChain(AsyncResult):
     def chain(self, sql: str, *args, vars_fn: VarsFnType = None, **kwargs) -> 'SqlChain':
         new_node = self.__class__(sql=sql, parent=self, *args, **{"vars_fn": vars_fn, **kwargs})
         self.child.add(new_node)
-        self.root._nodes.add(new_node)
+        self.root.nodes.add(new_node)
         return new_node
 
     def close(self):
         self.cursor.close()
-        for ch in self._nodes:
+        for ch in self.nodes:
             try:
                 ch.cursor.close()
             except pyodbc.ProgrammingError:
@@ -78,7 +78,7 @@ class SqlChain(AsyncResult):
 
 class RestTransactionMixin(ATransaction):
     def __init__(self, _id, callback_url: str, ping_timeout: Seconds, local_timeout: Seconds):
-        super().__init__(_id)
+        ATransaction.__init__(self, _id)
         self.callback_url = callback_url
         self.ping_timeout = ping_timeout
         self.local_timeout = local_timeout
@@ -144,7 +144,9 @@ class RestTransactionMixin(ATransaction):
 
 class SqlTransaction(ATransaction):
     ResultProcessorType = Callable[
-        ['SqlTransaction', Tuple[Iterable[SqlResult], ...]], Union[str, int, float, dict, list, tuple]]
+        ['SqlTransaction', Tuple[Iterable[SqlResult], ...]],
+        Union[str, int, float, dict, list, tuple]
+    ]
 
     def __init__(self, connection: pyodbc.Connection, result_processor: ResultProcessorType):
         super().__init__(ObjectId())
@@ -155,7 +157,7 @@ class SqlTransaction(ATransaction):
         self.result_containers: List[SqlChain] = []
 
     @g_async
-    def execute(self):
+    def _spawn(self):
         for ch in self.chains:
             ch.execute()
         wait(self.result_containers)
@@ -201,6 +203,10 @@ class RestSqlTransaction(RestTransactionMixin, SqlTransaction):
         )
         SqlTransaction.__init__(self, connection, result_processor)
 
+    def _spawn(self):
+        RestTransactionMixin._spawn(self)
+        return SqlTransaction._spawn(self)
+
 
 class RouteWrapperTransaction(ATransaction):
     def __init__(self, connection: pyodbc.Connection):
@@ -212,7 +218,8 @@ class RouteWrapperTransaction(ATransaction):
 
     @g_async
     def _spawn(self):
-        self.result.set(self.route)
+        self.result.set(spawn(self.route).get())
+        self.ready_commit.set()
 
     @g_async
     def do_commit(self):
@@ -235,3 +242,7 @@ class RestRouteWrapperTransaction(RestTransactionMixin, RouteWrapperTransaction)
             local_timeout=local_timeout
         )
         RouteWrapperTransaction.__init__(self, connection)
+
+    def _spawn(self):
+        RestTransactionMixin._spawn(self)
+        return RouteWrapperTransaction._spawn(self)

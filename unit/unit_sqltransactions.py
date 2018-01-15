@@ -8,7 +8,7 @@ from gevent import wait
 from mimesis import Personal
 
 from sql_transactions import CONNECTIONS
-from sql_transactions.transactions import SqlChain, SqlTransaction, SqlResult
+from sql_transactions.transactions import SqlChain, SqlTransaction, SqlResult, RouteWrapperTransaction
 from tools import dict_factory
 
 
@@ -61,12 +61,12 @@ class DbSetUp(TestCase):
                                           update)
             cursor.commit()
 
-
-class SqlChainTest(DbSetUp):
     def setUp(self):
         self.connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
         self.cursor = self.connection.cursor()
 
+
+class SqlChainTest(DbSetUp):
     def test_one_query(self):
         query = SqlChain("SELECT * FROM person", cursor=self.cursor)
         query.execute()
@@ -110,7 +110,7 @@ class SqlChainTest(DbSetUp):
         self.assertIsInstance(result, Exception)
 
 
-class SqlTransactionTest(TestCase):
+class DbTestSetUp(TestCase):
     def setUp(self):
         self.connection: pyodbc.Connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
         self.connection2: pyodbc.Connection = pyodbc.connect(CONNECTIONS.MYSQL("test"))
@@ -128,6 +128,8 @@ class SqlTransactionTest(TestCase):
     def cursor(self):
         return self.connection.cursor()
 
+
+class SqlTransactionTest(DbTestSetUp):
     def test_commit(self):
         with self.cursor as cursor:
             cursor.execute("SELECT COUNT(*) AS c FROM test;")
@@ -175,6 +177,69 @@ class SqlTransactionTest(TestCase):
         wait((transaction.ready_commit,))
         res = transaction.get_result()
         self.assertEqual(len(res[0]), 2)
+
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            self.assertEqual(len(cursor.fetchall()), 0)
+
+        transaction.do_rollback()
+        wait((transaction.fail,))
+
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            self.assertEqual(len(cursor.fetchall()), 0)
+
+
+class RouteWrapperTransactionTest(DbTestSetUp):
+    def test_commit(self):
+        with self.cursor as cursor:
+            cursor.execute("SELECT COUNT(*) AS c FROM test;")
+            row: dict = dict_factory(cursor, cursor.fetchone())
+            self.assertFalse(row["c"])
+
+        def route(connection: pyodbc.Connection):
+            sql = SqlChain("""INSERT INTO test(x, ch) VALUES (1, 'a'), (2, 'b')""", cursor=connection.cursor())
+            res_sql = sql.chain("""SELECT * FROM test;""")
+            sql.execute()
+            return res_sql.get()
+
+        transaction = RouteWrapperTransaction(self.connection)
+        transaction.wrap(route)
+        transaction.run()
+        wait((transaction.ready_commit,))
+        res = transaction.get_result()
+        self.assertEqual(len(res), 2)
+
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            self.assertEqual(len(cursor.fetchall()), 0)
+
+        transaction.do_commit()
+        wait((transaction.commit,))
+
+        with self.connection2.cursor() as cursor:
+            cursor.execute("""SELECT * FROM test;""")
+            count = len(cursor.fetchall())
+            self.assertEqual(count, 2)
+
+    def test_rollback(self):
+        with self.cursor as cursor:
+            cursor.execute("SELECT COUNT(*) AS c FROM test;")
+            row: dict = dict_factory(cursor, cursor.fetchone())
+            self.assertFalse(row["c"])
+
+        def route(connection: pyodbc.Connection):
+            sql = SqlChain("""INSERT INTO test(x, ch) VALUES (1, 'a'), (2, 'b')""", cursor=connection.cursor())
+            res_sql = sql.chain("""SELECT * FROM test;""")
+            sql.execute()
+            return res_sql.get()
+
+        transaction = RouteWrapperTransaction(self.connection)
+        transaction.wrap(route)
+        transaction.run()
+        wait((transaction.ready_commit,))
+        res = transaction.get_result()
+        self.assertEqual(len(res), 2)
 
         with self.connection2.cursor() as cursor:
             cursor.execute("""SELECT * FROM test;""")
