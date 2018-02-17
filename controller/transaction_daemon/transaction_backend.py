@@ -329,7 +329,8 @@ class ChildTransaction(ATransaction):
             resp: urllib3.HTTPResponse = self.service.session.request(
                 self.method, self.service.url.path + self.url,
                 headers={
-                    "X-Transaction": self.key, **self.headers
+                    "X-Transaction": self.key, **self.headers,
+                    "Content-Type": "application/json"
                 },
                 body=json.dumps(self.data),
                 timeout=self.service.timeout
