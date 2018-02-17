@@ -26,7 +26,7 @@ tools.register_type(EStatus, (
 class ATransaction(metaclass=ABCMeta):
     @abstractmethod
     def __init__(self, _id):
-        self.key = None
+        self.key = getattr(self, "key", None)
         self.id = _id
         self.main_thread: Greenlet = None
         self.threads = Group()

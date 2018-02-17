@@ -248,7 +248,7 @@ null = object()
 
 
 class MultiDict(MutableMapping[KT, VT]):
-    # TODO: docs
+    """Works as builtin dict, but can have multiple key for one value and delete all keys by d.remove(value)"""
     def __init__(self, init_dict: Dict[KT, VT] = None):
         self._key_val = dict()  # type: Dict[KT, VT]
         self._val_id = dict()  # type: Dict[VT, ObjectId]

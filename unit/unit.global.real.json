@@ -1,0 +1,8 @@
+{
+  "entry_point": "http://localhost:5000/api/alpha/transactions",
+  "test_one": {
+    "global_timeout": 100000,
+    "service_local_timeout": [60000, 90000],
+    "services": 1
+  }
+}

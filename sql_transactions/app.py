@@ -30,7 +30,6 @@ class TransactionApp(EmptyApp):
                 local_timeout=data["timeout"] / 1000,
                 ping_timeout=self.PING_T_O
             )
-            tr.run()  # THREAD:root
             self.transactions[str(tr.id)] = tr
             self.transactions[tr.key] = tr
             return {
@@ -102,10 +101,9 @@ class TransactionApp(EmptyApp):
     def transaction_supported(self):
         def decorator(fn: Callable):
             def wrapper(*args, **kwargs):
-                connection = self.connection_factory()
                 transaction = self.transaction
                 if not transaction:
-                    return fn(self, *args, connection=connection, **kwargs)
+                    return fn(self, *args, connection=self.connection_factory(), **kwargs)
                 else:
                     transaction.wrap(fn, *args, **kwargs)
                     transaction.run()
