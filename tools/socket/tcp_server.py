@@ -51,6 +51,7 @@ class AServer(metaclass=ABCMeta):
             raise NameError(f.__name__)
         return f
 
+    # noinspection PyUnresolvedReferences
     def _handler(self, socket_obj: socket.SocketType, address: Tuple[str, int]):
         while not self._stop.ready():
             try:
@@ -119,6 +120,7 @@ class TcpServer(AServer):
         super().stop()
         self.socket.close()
 
+    # noinspection PyUnresolvedReferences
     def _handler(self, socket_obj: socket.SocketType, address: Tuple[str, int]):
         spawn(super()._handler, socket_obj, address)
 

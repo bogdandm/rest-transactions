@@ -44,6 +44,7 @@ class TcpClient(socket.SocketType, ATcpClient):
         except ConcurrentObjectUseError as e:
             print("You probably should use TcpClientThreading instead TcpClient")
             raise e
+        # noinspection PyTypeChecker
         return Response.decode(raw)
 
 
@@ -57,6 +58,7 @@ class TcpClientThreading(ATcpClient):
             soc.connect(self.address)
             soc.sendall(Request(method, data).encode())
             raw = receive(soc, 2 ** 10 * 8)
+        # noinspection PyTypeChecker
         return Response.decode(raw)
 
     def close(self):
