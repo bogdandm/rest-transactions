@@ -28,6 +28,7 @@ class App(TransactionApp):
             cursor.execute("INSERT INTO test(id, ch, json_data) VALUES (?, ?, ?)",
                            (_id, any_resource, json.dumps(data)))
             cursor_read: pyodbc.Cursor = connection.cursor()
+            # raise Exception()
             cursor_read.execute("SELECT * FROM test WHERE id=?;", (_id,))
             return {"data": dict_factory(cursor_read, cursor_read.fetchone())}
 

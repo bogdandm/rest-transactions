@@ -307,6 +307,9 @@ class ChildTransaction(ATransaction):
                 if resp.status != 200:
                     self.fail.set()  # EMIT(fail)
                 else:
+                    js = json.loads(resp.data)
+                    if not js["alive"]:
+                        self.fail.set()
                     end = datetime.now()
                     sleep(self.ping_timeout - (end - start).total_seconds() - 0.1)  # BLOCK, sleep
 

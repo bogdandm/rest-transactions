@@ -3,6 +3,6 @@
   "test_one": {
     "global_timeout": 100000,
     "service_local_timeout": [60000, 90000],
-    "services": 1
+    "services": 2
   }
 }

@@ -152,7 +152,7 @@ class RestTransactionMixin(ATransaction):
 
     @g_async
     def ready_commit_handler(self):
-        wait((self.ready_commit,), self.local_timeout) # BLOCK, local_timeout
+        wait((self.ready_commit, self.fail), count=1, timeout=self.local_timeout) # BLOCK, local_timeout
         if not self.fail.ready():
             debug_SSE.event({"event": "ready_commit", "t": datetime.now(), "data": None})  # DEBUG ready_commit
             data = {
@@ -267,8 +267,14 @@ class RouteWrapperTransaction(ATransaction):
 
     @g_async
     def _spawn(self):
-        self.result.set(spawn(self.route).get())
-        self.ready_commit.set()
+        greenlet: Greenlet = spawn(self.route)
+        wait((greenlet,))
+        if greenlet.exception is None:
+            self.result.set(greenlet.value)
+            self.ready_commit.set()
+        else:
+            self.fail.set()
+            self.do_rollback()
 
     @g_async
     def do_commit(self):

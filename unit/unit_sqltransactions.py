@@ -139,7 +139,7 @@ class SqlTransactionTest(DbTestSetUp):
         def result_processor(transaction: SqlTransaction, *results: Iterable[SqlResult]):
             return results
 
-        sql = SqlChain("""INSERT INTO test(x, ch) VALUES (1, 'a'), (2, 'b')""", cursor=self.cursor)
+        sql = SqlChain("""INSERT INTO test(id, x, ch) VALUES ('a', 1, 'a'), ('b', 2, 'b')""", cursor=self.cursor)
         res_sql = sql.chain("""SELECT * FROM test;""")
         transaction = SqlTransaction(self.connection, result_processor)
         transaction.add(sql, result_container=res_sql)
@@ -169,7 +169,7 @@ class SqlTransactionTest(DbTestSetUp):
         def result_processor(transaction: SqlTransaction, *results: Iterable[SqlResult]):
             return results
 
-        sql = SqlChain("""INSERT INTO test(x, ch) VALUES (1, 'a'), (2, 'a')""", cursor=self.cursor)
+        sql = SqlChain("""INSERT INTO test(id, x, ch) VALUES ('a', 1, 'a'), ('b', 2, 'b')""", cursor=self.cursor)
         res_sql = sql.chain("""SELECT * FROM test;""")
         transaction = SqlTransaction(self.connection, result_processor)
         transaction.add(sql, result_container=res_sql)
@@ -198,7 +198,7 @@ class RouteWrapperTransactionTest(DbTestSetUp):
             self.assertFalse(row["c"])
 
         def route(connection: pyodbc.Connection):
-            sql = SqlChain("""INSERT INTO test(x, ch) VALUES (1, 'a'), (2, 'b')""", cursor=connection.cursor())
+            sql = SqlChain("""INSERT INTO test(id, x, ch) VALUES ('a', 1, 'a'), ('b', 2, 'b')""", cursor=connection.cursor())
             res_sql = sql.chain("""SELECT * FROM test;""")
             sql.execute()
             return res_sql.get()
@@ -229,7 +229,7 @@ class RouteWrapperTransactionTest(DbTestSetUp):
             self.assertFalse(row["c"])
 
         def route(connection: pyodbc.Connection):
-            sql = SqlChain("""INSERT INTO test(x, ch) VALUES (1, 'a'), (2, 'b')""", cursor=connection.cursor())
+            sql = SqlChain("""INSERT INTO test(id, x, ch) VALUES ('a', 1, 'a'), ('b', 2, 'b')""", cursor=connection.cursor())
             res_sql = sql.chain("""SELECT * FROM test;""")
             sql.execute()
             return res_sql.get()
